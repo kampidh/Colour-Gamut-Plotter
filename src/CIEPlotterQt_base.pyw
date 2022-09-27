@@ -45,7 +45,7 @@ basedir = os.path.dirname(__file__)
 mainuifile = os.path.join(basedir,'MainUIwindow.ui')
 
 winVer = '1.0'
-WindowTitle = 'Colour Gamut Plotter v' + winVer
+winTitle = 'Colour Gamut Plotter v' + winVer
 
 aboutText = '''
 2022 - Written by Kampidh<br>
@@ -70,7 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotdensity_combo = self.findChild(QtWidgets.QComboBox, 'PlotDensityCombo')
         self.diagramtype_combo = self.findChild(QtWidgets.QComboBox, 'DiagramTypeCombo')
 
-        self.setWindowTitle(WindowTitle)
+        self.setWindowTitle(winTitle)
 
         self.printLog('==---------------------------------==')
 
