@@ -338,7 +338,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if ('g10' in infostr) or ('Linear' in infostr) :
                 self.printLog('Linear TRC detected, switching to linear')
-                isLin = True
+                colorspace_isLinear = True
         else:
             if autoClspc:
                 self.printLog('Automatic colorspace detection active')
