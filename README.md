@@ -7,7 +7,7 @@ Written in **Python 3.9.13**
 
 ## Module Dependencies
 - colour-science (primary, optional, graphviz, plotting, meshing, freeimage)
-- matplotlib (for some reason, it didn't installed from color-science optional in me)
+- matplotlib (for some reason, it didn't installed from color-science optional)
 - pyqt5
 - opencv
 
