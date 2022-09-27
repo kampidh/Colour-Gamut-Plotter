@@ -6,7 +6,7 @@ Written in **Python 3.9.13**
 ![Screenshot](Plotter-ss.png)
 
 ## Library Dependencies
-- colour-science (primary, optional, freeimage)
+- colour-science (primary, optional, graphviz, plotting, meshing, freeimage)
 - matplotlib (for some reason, it didn't installed from color-science optional in me)
 - pyqt5
 - opencv
