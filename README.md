@@ -1,2 +1,10 @@
 # Colour-Gamut-Plotter
-A GUI for Colour-Science CIE chromaticity scatter diagram from image
+A simple GUI for [Colour-Science](https://www.colour-science.org/) **plot_RGB_chromaticities_in_chromaticity_diagram** function
+
+Written in **Python 3.9.13**
+
+## Library Dependencies
+- colour-science (primary, optional, freeimage)
+- matplotlib (for some reason, it didn't installed from color-science optional in me)
+- pyqt5
+- opencv
