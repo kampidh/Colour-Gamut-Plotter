@@ -392,11 +392,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 RGBlin = customProfile.trcDecodeToLinear(RGB)
             else:
                 RGBlin = customProfile.trcDecodeToLinearSingle(RGB)
-            print('Use Profile TRC')
 
         else:
             RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
-            print('Use Std TRC')
 
         ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
 
