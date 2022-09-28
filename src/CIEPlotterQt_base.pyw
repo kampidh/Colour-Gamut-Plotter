@@ -232,6 +232,7 @@ class MainWindow(QtWidgets.QMainWindow):
         scAlpha = 0.9
         cProfile = ''
         trcFunc = 'sRGB'
+        autoProfileValid = False
 
         if colorspace_index == 0:
             colorspace = 'Auto'
@@ -293,6 +294,9 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if im.info.__contains__('icc_profile') and autoClspc:
+
+            autoProfileValid = True
+
             self.printLog('Automatic colorspace detection active')
             stinfo = im.info.get('icc_profile')
 
@@ -307,12 +311,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.printLog('\n==---------------------------------==\n')
                 return
 
-            # self.printLog('\nDescription from embedded profile:')
-            # self.printLog(ImageCms.getProfileDescription(prf))
-
-            # infostr = ImageCms.getProfileDescription(prf)
-
         else:
+            autoProfileValid = False
             if autoClspc:
                 self.printLog('Automatic colorspace detection active')
                 self.printLog('No color profile found, using sRGB instead')
@@ -366,39 +366,37 @@ class MainWindow(QtWidgets.QMainWindow):
 
         RGB = colour.io.convert_bit_depth(img)
 
-        RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
+        if autoProfileValid:
 
-        if im.info.__contains__('icc_profile') and autoClspc:
             self.printLog('\nUsing embedded profile gamut and TRC')
             self.printLog(customProfile.prfName)
             self.printLog('ICC version: %.1f' % customProfile.prfVer)
             self.printLog('TRC type:')
             trcType = customProfile.trcType
+
             if trcType == 'curv':
                 self.printLog('Curves')
                 curveLen = customProfile.curveLen
                 self.printLog('Length: %i' % curveLen)
                 if curveLen == 1:
                     self.printLog('Gamma: %.6f' % customProfile.gamma)
+
             elif trcType == 'para':
                 self.printLog('Parametric values:')
                 paraParams = ''.join(str(customProfile.paraParams))
                 self.printLog(paraParams)
 
             cProfile = customProfile.profileFromEmbed()
+
             if useAllTRCTags:
                 RGBlin = customProfile.trcDecodeToLinear(RGB)
             else:
                 RGBlin = customProfile.trcDecodeToLinearSingle(RGB)
+            print('Use Profile TRC')
 
-            # RGBlin = customProfile.trcDecodeToLinear(RGB)
-
-        # print(RGB[-1][-1])
-        # print(RGBlin[-1][-1])
-        # print(RGBlin.shape)
-        # prfName = customProfile.prfName
-        # cProfile2 = prfName.union(cProfile)
-        # print(cProfile2)
+        else:
+            RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
+            print('Use Std TRC')
 
         ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
 
