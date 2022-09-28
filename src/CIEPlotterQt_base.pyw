@@ -34,9 +34,11 @@ from PIL import Image, ImageCms
 import io
 import cv2
 
+from icctotrc import iccToTRC
+
 try:
     from ctypes import windll  # Only exists on Windows.
-    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1'
+    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_1'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -44,7 +46,7 @@ except ImportError:
 basedir = os.path.dirname(__file__)
 mainuifile = os.path.join(basedir,'MainUIwindow.ui')
 
-winVer = '1.0'
+winVer = '1.1'
 winTitle = 'Colour Gamut Plotter v' + winVer
 
 aboutText = '''
@@ -69,6 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.colorspace_linear = self.findChild(QtWidgets.QCheckBox, 'ColorspaceLinearCheckbox')
         self.plotdensity_combo = self.findChild(QtWidgets.QComboBox, 'PlotDensityCombo')
         self.diagramtype_combo = self.findChild(QtWidgets.QComboBox, 'DiagramTypeCombo')
+        self.usealltags_checkbox = self.findChild(QtWidgets.QCheckBox, 'useAllTagsCheckbox')
 
         self.setWindowTitle(winTitle)
 
@@ -208,6 +211,8 @@ class MainWindow(QtWidgets.QMainWindow):
         saveOnly_checked = self.save_checkbox.isChecked()
         saveOutput_dir = self.output_dir.text()
 
+        useAllTRCTags = self.usealltags_checkbox.isChecked()
+
         colorspace = ''
         diagramtype = ''
         dontResize = False
@@ -294,51 +299,19 @@ class MainWindow(QtWidgets.QMainWindow):
             fbuf = io.BytesIO(stinfo)
             prf = ImageCms.ImageCmsProfile(fbuf)
 
-            self.printLog('\nDescription from embedded profile:')
-            self.printLog(ImageCms.getProfileDescription(prf))
+            customProfile = iccToTRC(prf)
+            
+            colorType = prf.profile.xcolor_space.strip()
+            if colorType != 'RGB':
+                self.printLog('\n%s is not supported. Use RGB image instead' % colorType)
+                self.printLog('\n==---------------------------------==\n')
+                return
 
-            infostr = ImageCms.getProfileDescription(prf)
+            # self.printLog('\nDescription from embedded profile:')
+            # self.printLog(ImageCms.getProfileDescription(prf))
 
-            if '2020' in infostr:
-                self.printLog('Colorspace detected: Bt.2020')
-                cProfile = 'ITU-R BT.2020'
-                trcFunc = 'sRGB'
-            elif 'Adobe RGB' in infostr:
-                self.printLog('Colorspace detected: Adobe RGB')
-                cProfile = 'adobe1998'
-                trcFunc = 'Gamma 2.2'
-            elif 'Display P3' in infostr:
-                self.printLog('Colorspace detected: Display P3')
-                cProfile = 'Display P3'
-                trcFunc = 'sRGB'
-            elif 'DCID65' in infostr:
-                self.printLog('Colorspace detected: Display P3')
-                cProfile = 'Display P3'
-                trcFunc = 'sRGB'
-            elif 'ProPhoto' in infostr:
-                self.printLog('Colorspace detected: ProPhoto RGB')
-                cProfile = 'ProPhoto RGB'
-                trcFunc = 'ProPhoto RGB'
-            elif 'ACEScg' in infostr:
-                self.printLog('Colorspace detected: ACEScg')
-                cProfile = 'ACEScg'
-                trcFunc = 'sRGB'
-            elif 'ACES' in infostr:
-                self.printLog('Colorspace detected: ACES')
-                cProfile = 'aces'
-                trcFunc = 'sRGB'
-            elif 'sRGB' in infostr:
-                self.printLog('Colorspace detected: sRGB')
-                cProfile = 'sRGB'
-                trcFunc = 'sRGB'
-            else:
-                self.printLog('Profile not supported yet, using sRGB instead')
-                cProfile = 'sRGB'
-                trcFunc = 'sRGB'
+            # infostr = ImageCms.getProfileDescription(prf)
 
-            if ('g10' in infostr) or ('Linear' in infostr) :
-                self.printLog('Linear TRC detected, switching to linear')
-                colorspace_isLinear = True
         else:
             if autoClspc:
                 self.printLog('Automatic colorspace detection active')
@@ -366,7 +339,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.printLog("Reduction ratio = 1:%.2f" % reduxRatio)
 
             prep = cv2.resize(prep, (floor(prep.shape[1] / reduxRatio), floor(prep.shape[0] / reduxRatio)), interpolation=6)
-            self.printLog("Resized:")
+            # self.printLog("Resized:")
             self.printLog("width: %s | height: %s" % (prep.shape[1], prep.shape[0]))
 
             finSize = prep.shape[0] * prep.shape[1]
@@ -395,7 +368,39 @@ class MainWindow(QtWidgets.QMainWindow):
 
         RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
 
-        ovrSpace = ['sRGB', 'Display P3', 'ITU-R BT.2020', cProfile]
+        if im.info.__contains__('icc_profile') and autoClspc:
+            self.printLog('\nUsing embedded profile gamut and TRC')
+            self.printLog(customProfile.prfName)
+            self.printLog('ICC version: %.1f' % customProfile.prfVer)
+            self.printLog('TRC type:')
+            trcType = customProfile.trcType
+            if trcType == 'curv':
+                self.printLog('Curves')
+                curveLen = customProfile.curveLen
+                self.printLog('Length: %i' % curveLen)
+                if curveLen == 1:
+                    self.printLog('Gamma: %.6f' % customProfile.gamma)
+            elif trcType == 'para':
+                self.printLog('Parametric values:')
+                paraParams = ''.join(str(customProfile.paraParams))
+                self.printLog(paraParams)
+
+            cProfile = customProfile.profileFromEmbed()
+            if useAllTRCTags:
+                RGBlin = customProfile.trcDecodeToLinear(RGB)
+            else:
+                RGBlin = customProfile.trcDecodeToLinearSingle(RGB)
+
+            # RGBlin = customProfile.trcDecodeToLinear(RGB)
+
+        # print(RGB[-1][-1])
+        # print(RGBlin[-1][-1])
+        # print(RGBlin.shape)
+        # prfName = customProfile.prfName
+        # cProfile2 = prfName.union(cProfile)
+        # print(cProfile2)
+
+        ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
 
         if saveOnly_checked:
             plotDens_name = ''
@@ -418,7 +423,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 fName = os.path.join(saveOutput_dir, outFileName)
                 fiName = fName.replace(os.sep, posixpath.sep)
 
-        self.printLog('\n==---------------------------------==\n')
+        self.printLog('\n==---------------------------------==')
         sSuccess = False
 
         #--------Here goes the plotting code--------------
@@ -485,10 +490,10 @@ class MainWindow(QtWidgets.QMainWindow):
                         bounding_box=chRange1931,
                     )
                     self.printLog('Plotting Completed')
-                    self.printLog('\n==---------------------------------==\n')
+                    self.printLog('==---------------------------------==\n')
                 except:
                     self.printLog('Plotting Failed')
-                    self.printLog('\n==---------------------------------==\n')
+                    self.printLog('==---------------------------------==\n')
                     plt.close()
         elif diagramtype == 'CIE-1976-UCS':
             COL_STYLE = colour.plotting.colour_style()
