@@ -13,11 +13,9 @@ Written in **Python 3.9.13**
 
 ## Features
 - Image file opened with OpenCV instead, so image bit depth is preserved. As colour science read_image is using imageio and downsampled the image to 8 bit.
-- Crude automatic colour profile detection using Pillow ImageCMS, parsing embedded color profile data from image and match the string.
+- Automatic colour profile detection parsed from embedded profile.
 - Selectable plotting density. If image is bigger than the plotting density, image is resized with Nearest Neighbour so no interpolation is happening.
 - Selectable diagram mode, between CIE 1930 or CIE 1976 UCS Chromaticity diagram.
 
 ## Limitation
 - Only supports image with RGB model.
-- Auto color profile only supports **sRGB, Display P3, Adobe RGB, BT.2020, ProPhoto RGB, ACEScg, and ACES** through string search from image's embedded profile, thus it might not be accurate.
-- I haven't been able to extract any curve/matrix/LUT from the embedded color profile, so TRC calculation only applied to each image standards (eg. sRGB TRC for sRGB colourspace).
