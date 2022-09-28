@@ -292,14 +292,20 @@ class iccToTRC:
             # print('whitepoint different')
             pass
 
+        sinMTX = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype=float)
+        # print(sinMTX)
+
         if prf.profile.chromatic_adaptation and wSame:
             #use chromatic_adaptation tag if the profile has it
             #and skip if white point is already different from PCS (XYZ)
-            pCA = np.array(prf.profile.chromatic_adaptation[0])
-            pCAinv = inv(pCA)
-            pWhiteCA = np.dot(pCAinv, pWhiteXYZ)
-            pWhitexy = colour.XYZ_to_xy(pWhiteCA)
-            wt_prf = pWhitexy
+            try:
+                pCA = np.array(prf.profile.chromatic_adaptation[0])
+                pCAinv = inv(pCA)
+                pWhiteCA = np.dot(pCAinv, pWhiteXYZ)
+                pWhitexy = colour.XYZ_to_xy(pWhiteCA)
+                wt_prf = pWhitexy
+            except:
+                wt_prf = np.array([pWhitepoint[0], pWhitepoint[1]])
         else:
             #else, take from the media_white_point tag
             wt_prf = np.array([pWhitepoint[0], pWhitepoint[1]])
@@ -311,9 +317,16 @@ class iccToTRC:
             p_Name = ps_Name.replace('.icc', '').replace('.icm', '').strip()
 
         pRGBD50 = np.array([pRedPrimary[0], pRedPrimary[1], pGreenPrimary[0], pGreenPrimary[1], pBluePrimary[0], pBluePrimary[1]])
-        pRGBD65 = colour.chromatically_adapted_primaries(pRGBD50, wt_pcs, wt_prf, 'Bradford')
+        
+        try:
+            pRGBD65 = colour.chromatically_adapted_primaries(pRGBD50, wt_pcs, wt_prf, 'Bradford')
+        except:
+            pRGBD65 = pRGBD50
 
-        colourspace = colour.RGB_Colourspace(p_Name, pRGBD65, wt_prf)
+        try:
+            colourspace = colour.RGB_Colourspace(p_Name, pRGBD65, wt_prf)
+        except:
+            colourspace = ''
 
         return colourspace
 

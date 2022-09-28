@@ -303,6 +303,8 @@ class MainWindow(QtWidgets.QMainWindow):
             fbuf = io.BytesIO(stinfo)
             prf = ImageCms.ImageCmsProfile(fbuf)
 
+            infostr = ImageCms.getProfileDescription(prf).strip()
+
             customProfile = iccToTRC(prf)
             
             colorType = prf.profile.xcolor_space.strip()
@@ -489,6 +491,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.printLog('==---------------------------------==\n')
                 except:
                     self.printLog('Plotting Failed')
+                    if 'identity'.lower() in infostr.lower():
+                        self.printLog('IdentityRGB is not supported.')
                     self.printLog('==---------------------------------==\n')
                     plt.close()
         elif diagramtype == 'CIE-1976-UCS':
@@ -555,6 +559,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.printLog('\n==---------------------------------==\n')
                 except:
                     self.printLog('Plotting Failed')
+                    if 'identity'.lower() in infostr.lower():
+                        self.printLog('IdentityRGB is not supported.')
                     self.printLog('\n==---------------------------------==\n')
                     plt.close()
         else:
