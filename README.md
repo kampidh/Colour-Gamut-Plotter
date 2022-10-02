@@ -7,9 +7,10 @@ Written in **Python 3.9.13**
 
 ## Module Dependencies
 - colour-science (primary, optional, graphviz, plotting, meshing, freeimage)
-- matplotlib (for some reason, it didn't installed from color-science optional)
+- matplotlib (for some reason in my case, it didn't installed from color-science optional)
 - pyqt5
 - opencv
+- tifffile
 
 ## Features
 - Image file opened with OpenCV instead, so image bit depth is preserved. As colour science read_image is using imageio and downsampled the image to 8 bit.
@@ -19,3 +20,4 @@ Written in **Python 3.9.13**
 
 ## Limitation
 - Only supports image with RGB model.
+- When opening a multiple page TIFF, only the first page that will be plotted
