@@ -1,6 +1,23 @@
-from logging import raiseExceptions
+#================================================================================
+#   CIE Colour Gamut Plotter - ICC to TRC
+#     Copyright (C) 2022  Kampidh
+
+#     This program is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+
+#     This program is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+
+#     You should have received a copy of the GNU General Public License
+#     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#================================================================================
+
 import struct
-from PIL import ImageCms
+import warnings
 
 import colour
 import numpy as np
@@ -11,15 +28,14 @@ from numpy.linalg import inv
 import concurrent.futures
 
 class iccToTRC:
-    def __init__(self, profile: ImageCms.ImageCmsProfile):
-        self.prf = profile
-        self.prfByte = profile.tobytes()
-        self.prfVer = profile.profile.version
+    def __init__(self, profile: bytes):
+        self.prfByte = profile
+        self.prfVer = self.extractICCversion()
 
-        ps_Name = ImageCms.getProfileDescription(self.prf)
-        p_Name = ps_Name.replace('.icc', '').replace('.icm', '').strip()
+        p_NameFull = self.extractDescription('desc')
+        p_NameStrip = p_NameFull.replace('.icc', '').replace('.icm', '').strip()
 
-        self.prfName = p_Name
+        self.prfName = p_NameStrip
 
         self.trcType = self.extractICCtag('rTRC')[0:4].decode('utf-8').strip()
 
@@ -88,6 +104,7 @@ class iccToTRC:
     def trcDecode(self, input):
         if self.uniformTRC:
             result = self.trcDecodeToLinearSingle(input)
+            # result = self.trcDecodeToLinear_MP(input)
         else:
             result = self.trcDecodeToLinear_MP(input)
         return result
@@ -136,6 +153,8 @@ class iccToTRC:
             result = self.curveToLinearNP_Single(input, 0)
         elif self.trcTypes[0] == 'para':
             result = self.vTRCParaToLinearSingle(input, *self.trcParaParams[0])
+        else:
+            raise Exception(f'TRC type {self.trcTypes[0]} is not supported')
         return result
 
     def curveToLinearNP_Single(self, input: float, channel: int) -> float:
@@ -183,7 +202,6 @@ class iccToTRC:
             return 0
 
     def curvModeGetTable(self, tag: str):
-        # prf = self.prf
 
         curveLen = int.from_bytes(self.extractICCtag(tag)[8:12], 'big')
         curveCont = self.extractICCtag(tag)[12:]
@@ -257,6 +275,12 @@ class iccToTRC:
         wt_pcs = np.array([0.34570292, 0.35853753])
         wt_d65 = np.array([0.31270049, 0.32900094])
 
+        wt_pcs_D50_byte = b'\x00\x00\xF6\xD6\x00\x01\x00\x00\x00\x00\xD3\x2D'
+        wt_pcs_profile_byte = self.prfByte[68:80]
+
+        if not wt_pcs_D50_byte == wt_pcs_profile_byte:
+            warnings.warn("Embedded profile PCS illuminant is not D50")
+
         if self.extractICCtag('chad') != -1:
             chAD_mtx = self.extractSF32data('chad')
             chad_exist = True
@@ -264,6 +288,7 @@ class iccToTRC:
             chad_exist = False
 
         pcsWhite_XYZ = self.extractXYZPCS()
+        wt_pcs = colour.XYZ_to_xy(pcsWhite_XYZ)
         pWhite_XYZ = self.extractXYZdata('wtpt')
 
         sinMTX = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype=float)
@@ -272,7 +297,7 @@ class iccToTRC:
             #use chromatic_adaptation tag if the profile has it
             #and skip if white point is already different from PCS (XYZ)
             pCAinv = inv(chAD_mtx)
-            pWhiteCA = np.dot(pCAinv, pWhite_XYZ)
+            pWhiteCA = np.dot(pCAinv, pcsWhite_XYZ)
             pWhitexy = colour.XYZ_to_xy(pWhiteCA)
             wt_prf = pWhitexy
         else:
@@ -283,11 +308,11 @@ class iccToTRC:
         if pName:
             p_Name = pName
         else:
-            ps_Name = ImageCms.getProfileDescription(self.prf)
-            p_Name = ps_Name.replace('.icc', '').replace('.icm', '').strip()
+            # ps_Name = self.prfName
+            p_Name = self.prfName
 
         pRGBD50 = np.array([pRedPrimary[0], pRedPrimary[1], pGreenPrimary[0], pGreenPrimary[1], pBluePrimary[0], pBluePrimary[1]])
-        
+
         try:
             pRGBD65 = colour.chromatically_adapted_primaries(pRGBD50, wt_pcs, wt_prf, 'Bradford')
         except:
@@ -416,7 +441,46 @@ class iccToTRC:
 
         return tagPosNdx
 
+    def extractDescription(self, descTag = 'desc') -> str:
+
+        tagBuffer = self.extractICCtag(descTag)
+        tagType = tagBuffer[0:4].decode().strip()
+
+        if tagType == 'desc':
+            firstNdx = 12
+            lastNdx = tagBuffer[firstNdx:].find(b'\x00') + firstNdx
+            descStr = tagBuffer[firstNdx:lastNdx].decode('utf-8')
+
+            return descStr
+
+        elif tagType == 'mluc':
+            strLen = int.from_bytes(tagBuffer[20:24], 'big')
+            strfirstNdx = int.from_bytes(tagBuffer[24:28], 'big')
+            descStr = tagBuffer[strfirstNdx:strfirstNdx+strLen].decode('utf-8').replace('\x00','').strip()
+
+            return descStr
+
+        else:
+            return ''
+
+    def extractICCversion(self) -> float:
+
+        tagverHi = int.from_bytes(self.prfByte[8:9], 'big')
+        tagverLo = int.from_bytes(self.prfByte[9:10], 'big')
+        tagverLoNH = tagverLo >> 4
+        tagverLoNL = tagverLo & 0x0F
+
+        tagversionICC = float(f'{tagverHi}.{tagverLoNH}{tagverLoNL}')
+        return tagversionICC
+
+    def extractColorSpace(self) -> str:
+        strSpace = self.prfByte[16:20].decode('utf-8').strip()
+        return strSpace
+
     def validate(self):
+        headerTag = self.prfByte[36:40].decode('utf-8').strip()
+        if headerTag != 'acsp':
+            return False
 
         testEntries = np.array([
             self.findTagPos('rXYZ'),
