@@ -320,6 +320,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 prep = cv2.imread(input_file,-1)
 
             prepd = prep.dtype
+            
         except:
             self.printLog('Failed to open file, not a valid or unsupported image format')
             self.printLog('\n==---------------------------------==\n')

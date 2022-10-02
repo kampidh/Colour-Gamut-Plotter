@@ -81,6 +81,12 @@ class iccToTRC:
         for x in range(3):
             if self.trcTypes[x] == 'para':
                 self.trcParaParams[x] = self.parametricParse(self.trcTags[x])
+                #
+                # experimental note 1: Speeds up conversion while sacrificing a bit of accuracy
+                # by converting the parametric function into curve LUT
+                # |
+                # v
+                self.trcCurvLUTs[x] = self.trcParaToCurv(self.trcParaParams[x])
             elif self.trcTypes[x] == 'curv':
                 self.trcCurvLens[x] = int.from_bytes(self.extractICCtag(self.trcTags[x])[8:12], 'big')
                 if self.trcCurvLens[x] == 1:
@@ -118,7 +124,8 @@ class iccToTRC:
                 if self.trcTypes[x] == 'curv':
                     bufRGB[x] = executor.submit(self.curveToLinearNP_Single, inRGB[x], x)
                 elif self.trcTypes[x] == 'para':
-                    bufRGB[x] = executor.submit(self.vTRCParaToLinearSingle, inRGB[x], *self.trcParaParams[x])
+                    # bufRGB[x] = executor.submit(self.vTRCParaToLinearSingle, inRGB[x], *self.trcParaParams[x])
+                    bufRGB[x] = executor.submit(self.paraCurveToLinearNP_Single, inRGB[x], x) # experimental note 1
                 else:
                     raise Exception(f'TRC type {self.trcTypes[x]} is not supported')
 
@@ -138,7 +145,8 @@ class iccToTRC:
             if self.trcTypes[x] == 'curv':
                 bufRGB[x] = self.curveToLinearNP_Single(inRGB[x], x)
             elif self.trcTypes[x] == 'para':
-                bufRGB[x] = self.vTRCParaToLinearSingle(inRGB[x], *self.trcParaParams[x])
+                # bufRGB[x] = self.vTRCParaToLinearSingle(inRGB[x], *self.trcParaParams[x])
+                bufRGB[x] = self.paraCurveToLinearNP_Single(inRGB[x], x) # experimental note 1
         
         r = bufRGB[0]
         g = bufRGB[1]
@@ -152,18 +160,24 @@ class iccToTRC:
         if self.trcTypes[0] == 'curv':
             result = self.curveToLinearNP_Single(input, 0)
         elif self.trcTypes[0] == 'para':
-            result = self.vTRCParaToLinearSingle(input, *self.trcParaParams[0])
+            # result = self.vTRCParaToLinearSingle(input, *self.trcParaParams[0])
+            result = self.paraCurveToLinearNP_Single(input, 0) # experimental note 1
         else:
             raise Exception(f'TRC type {self.trcTypes[0]} is not supported')
         return result
 
     def curveToLinearNP_Single(self, input: float, channel: int) -> float:
         if self.trcCurvLens[channel] == 1:
-            # gamma = self.trcCurvGammas[channel]
             calc = input ** self.trcCurvGammas[channel]
             return calc
         else:
             return np.interp(input, self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1])
+
+    #
+    # experimental note 1
+    #
+    def paraCurveToLinearNP_Single(self, input: float, channel: int) -> float:
+        return np.interp(input, self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1])
 
     def trcParaToLinearSingle(self, x: float, *args) -> float:
         if len(args) == 1:
@@ -200,6 +214,54 @@ class iccToTRC:
 
         else:
             return 0
+    #
+    # experimental note 1
+    #
+    def trcParaToCurv(self, *args):
+        LUTndx = []
+        LUTlist = []
+
+        # increase LUT length to increase accuracy
+        LUTlen = 8192
+
+        args = np.array(args, dtype=float)[0]
+
+        for xI in range(LUTlen):
+            x = xI / (LUTlen - 1)
+
+            if len(args) == 1:
+                Y = pow(x, args[0])
+
+            elif len(args) == 3:
+                if x >= (-args[2] / args[1]):
+                    Y = pow(((args[1] * x) + args[2]), args[0])
+                elif x < (-args[2] / args[1]):
+                    Y = 0
+
+            elif len(args) == 4:
+                if x >= (-args[2] / args[1]):
+                    Y = pow(((args[1] * x) + args[2]), args[0]) + args[3]
+                elif x < (-args[2] / args[1]):
+                    Y = args[3]
+
+            elif len(args) == 5:
+                if x >= args[4]:
+                    Y = pow(((args[1] * x) + args[2]), args[0])
+                elif x < args[4]:
+                    Y = (args[3] * x)
+
+            elif len(args) == 7:
+                if x >= args[4]:
+                    Y = pow(((args[1] * x) + args[2]), args[0]) + args[5]
+                elif x < args[4]:
+                    Y = ((args[3] * x) + args[6])
+
+            LUTndx.append(x)
+            LUTlist.append(Y)
+
+        tb = np.array([LUTndx, LUTlist], dtype=float)
+
+        return tb
 
     def curvModeGetTable(self, tag: str):
 
@@ -295,7 +357,6 @@ class iccToTRC:
 
         if chad_exist and not np.all(chAD_mtx == sinMTX):
             #use chromatic_adaptation tag if the profile has it
-            #and skip if white point is already different from PCS (XYZ)
             pCAinv = inv(chAD_mtx)
             pWhiteCA = np.dot(pCAinv, pcsWhite_XYZ)
             pWhitexy = colour.XYZ_to_xy(pWhiteCA)
@@ -308,7 +369,6 @@ class iccToTRC:
         if pName:
             p_Name = pName
         else:
-            # ps_Name = self.prfName
             p_Name = self.prfName
 
         pRGBD50 = np.array([pRedPrimary[0], pRedPrimary[1], pGreenPrimary[0], pGreenPrimary[1], pBluePrimary[0], pBluePrimary[1]])
@@ -449,7 +509,7 @@ class iccToTRC:
         if tagType == 'desc':
             firstNdx = 12
             lastNdx = tagBuffer[firstNdx:].find(b'\x00') + firstNdx
-            descStr = tagBuffer[firstNdx:lastNdx].decode('utf-8')
+            descStr = tagBuffer[firstNdx:lastNdx].decode('utf-8').replace('\x00','').strip()
 
             return descStr
 
