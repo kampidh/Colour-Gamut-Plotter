@@ -1,8 +1,7 @@
 # Colour-Gamut-Plotter
 A simple GUI for [Colour-Science](https://www.colour-science.org/) **plot_RGB_chromaticities_in_chromaticity_diagram** function
 
-Written in **Python 3.9.13**
-Updated to 3.10.7
+Written in **Python 3.10.7**
 
 ![Screenshot](Plotter-ss.png)
 
