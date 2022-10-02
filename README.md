@@ -15,6 +15,7 @@ Written in **Python 3.10.7**
 ## Features
 - Image file opened with OpenCV instead, so image bit depth is preserved. As colour science read_image is using imageio and downsampled the image to 8 bit.
 - Automatic colour profile detection parsed from embedded profile.
+- Automatic detection if the embedded profile have different per-channel TRC
 - Selectable plotting density. If image is bigger than the plotting density, image is resized with Nearest Neighbour so no interpolation is happening.
 - Selectable diagram mode, between CIE 1930 or CIE 1976 UCS Chromaticity diagram.
 
