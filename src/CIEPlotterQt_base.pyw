@@ -31,8 +31,8 @@ from pathlib import Path
 import numpy as np
 from math import floor
 
-from PIL import Image, ImageCms
-import io
+from PIL import Image
+from tifffile import TiffFile
 import cv2
 
 # Workaround for pyinstaller not showing the pyplot window
@@ -43,7 +43,7 @@ from icctotrcMP import iccToTRC
 
 try:
     from ctypes import windll  # Windows only
-    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_5'
+    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_8'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -51,7 +51,7 @@ except ImportError:
 basedir = os.path.dirname(__file__)
 mainuifile = os.path.join(basedir,'MainUIwindow.ui')
 
-winVer = '1.5'
+winVer = '1.8'
 winTitle = 'Colour Gamut Plotter v' + winVer
 
 aboutText = '''
@@ -107,10 +107,6 @@ class MainWindow(QtWidgets.QMainWindow):
             file_path = event.mimeData().urls()[0].toLocalFile()
             try:
                 prep = cv2.imread(file_path,-1)
-                im = Image.open(file_path)
-                if im:
-                    im.close()
-                prepd = prep.dtype
             except:
                 self.file_input.clear()
                 QMessageBox.warning(self, 'Error', 'Unsupported format')
@@ -132,13 +128,13 @@ class MainWindow(QtWidgets.QMainWindow):
         fInput = self.file_input.text()
         options = QFileDialog.Options()
         if not fInput:
-            fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.bmp);;All Files (*)", options=options)
+            fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.tif *.tiff *.bmp);;All Files (*)", options=options)
         else:
             fDir = str(os.path.dirname(fInput))
             if os.path.isdir(fDir):
-                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", fDir,"Image Files (*.png *.jpg *.bmp);;All Files (*)", options=options)
+                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", fDir,"Image Files (*.png *.jpg *.tif *.tiff *.bmp);;All Files (*)", options=options)
             else:
-                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.bmp);;All Files (*)", options=options)
+                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.tif *.tiff *.bmp);;All Files (*)", options=options)
         if fileName:
             self.file_input.setText(fileName)
 
@@ -226,6 +222,7 @@ class MainWindow(QtWidgets.QMainWindow):
         saveOnly_checked = self.save_checkbox.isChecked()
         saveOutput_dir = self.output_dir.text()
 
+        # debug
         useAllTRCTags = self.usealltags_checkbox.isChecked()
 
         colorspace = ''
@@ -284,6 +281,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             maxPixel = 500000
 
+        if input_file.find('.tif') != -1 or input_file.find('.tiff') != -1 :
+            isTIFF = True
+        else:
+            isTIFF = False
+
         self.printLog('Diagram style: %s' % diagramtype)
         self.printLog('Save file: %s' % saveOnly_checked)
         self.printLog('Input image: %s' % input_file)
@@ -299,40 +301,56 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             pltSize = [12, 12]
 
+        stinfo = ''
+
         try:
-            prep = cv2.imread(input_file,-1)
-            im = Image.open(input_file)
+
+            if isTIFF:
+                # use tifffile to extract data from tiff file
+                tif = TiffFile(input_file)
+                prep_a = tif.pages[0].asarray()
+                stinfo = tif.pages[0].tags['InterColorProfile'].value
+                tif.close()
+                prep = cv2.cvtColor(prep_a, cv2.COLOR_RGB2BGR)
+            else:
+                # use PIL instead for other images
+                im = Image.open(input_file)
+                stinfo = im.info.get('icc_profile')
+                im.close()
+                prep = cv2.imread(input_file,-1)
+
             prepd = prep.dtype
         except:
             self.printLog('Failed to open file, not a valid or unsupported image format')
             self.printLog('\n==---------------------------------==\n')
             return
 
-        if im.info.__contains__('icc_profile') and autoClspc:
+        if stinfo and autoClspc:
 
             autoProfileValid = True
 
             self.printLog('Automatic colorspace detection active')
-            stinfo = im.info.get('icc_profile')
 
-            fbuf = io.BytesIO(stinfo)
-            prf = ImageCms.ImageCmsProfile(fbuf)
+            # give it the byte stream of extracted icc data
+            # either from PIL or tifffile
+            customProfile = iccToTRC(stinfo)
 
-            infostr = ImageCms.getProfileDescription(prf).strip()
+            infostr = customProfile.extractDescription()
+            cSpace = customProfile.extractColorSpace()
 
-            customProfile = iccToTRC(prf)
             pValidate = customProfile.validate()
             
-            colorType = prf.profile.xcolor_space.strip()
+            colorType = cSpace
             if colorType != 'RGB':
                 self.printLog('\n%s is not supported. Use RGB image instead' % colorType)
                 self.printLog('\n==---------------------------------==\n')
                 return
 
             if not pValidate:
-                self.printLog('\nColor profile error.')
-                self.printLog('\n==---------------------------------==\n')
-                return
+                autoProfileValid = False
+                self.printLog('\nColor profile reading error, using sRGB instead')
+                cProfile = 'sRGB'
+                trcFunc = 'sRGB'
 
         else:
             autoProfileValid = False
@@ -344,8 +362,6 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 cProfile = colorspace
                 trcFunc = 'sRGB'
-
-        im.close()
 
         np.seterr(divide='ignore', invalid='ignore')
         
@@ -359,7 +375,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             reduxRatio = np.sqrt((prep.shape[0] * prep.shape[1]) / maxPixel)
 
-            self.printLog("Reduction ratio = 1:%.2f" % reduxRatio)
+            self.printLog("Reduction ratio = 1:%.3f" % reduxRatio)
 
             prep = cv2.resize(prep, (floor(prep.shape[1] / reduxRatio), floor(prep.shape[0] / reduxRatio)), interpolation=6)
             # self.printLog("Resized:")
@@ -536,6 +552,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         title="CIE 1931 Chromaticity Diagram",
                         bounding_box=chRange1931,
                     )
+                    
                     self.printLog('Plotting Completed')
                     self.printLog('==---------------------------------==\n')
                 except:
@@ -588,6 +605,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         bounding_box=chRange1976,
                         filename=fiName,
                     )
+                    sSuccess = True
                     plt.close()
                 except:
                     sSuccess = False
