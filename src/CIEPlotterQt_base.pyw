@@ -18,6 +18,7 @@
 
 import os, sys
 import posixpath
+import time
 from PyQt5 import QtWidgets, QtGui, uic
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtCore import Qt
@@ -34,11 +35,15 @@ from PIL import Image, ImageCms
 import io
 import cv2
 
-from icctotrc import iccToTRC
+# Workaround for pyinstaller not showing the pyplot window
+import matplotlib
+matplotlib.use('TkAgg')
+
+from icctotrcMP import iccToTRC
 
 try:
-    from ctypes import windll  # Only exists on Windows.
-    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_1'
+    from ctypes import windll  # Windows only
+    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_5'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -46,7 +51,7 @@ except ImportError:
 basedir = os.path.dirname(__file__)
 mainuifile = os.path.join(basedir,'MainUIwindow.ui')
 
-winVer = '1.1'
+winVer = '1.5'
 winTitle = 'Colour Gamut Plotter v' + winVer
 
 aboutText = '''
@@ -66,6 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_output = self.findChild(QtWidgets.QPlainTextEdit, 'LogOutputText')
         self.output_dir = self.findChild(QtWidgets.QLineEdit, 'SaveDirectoryInput')
         self.output_btn = self.findChild(QtWidgets.QPushButton, 'SaveDirectoryButton')
+        self.apply_btn = self.findChild(QtWidgets.QPushButton, 'ApplyButton')
         self.save_checkbox = self.findChild(QtWidgets.QCheckBox, 'SaveAsCheckbox')
         self.colorspace_combo = self.findChild(QtWidgets.QComboBox, 'ColorspaceCombo')
         self.colorspace_linear = self.findChild(QtWidgets.QCheckBox, 'ColorspaceLinearCheckbox')
@@ -73,9 +79,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.diagramtype_combo = self.findChild(QtWidgets.QComboBox, 'DiagramTypeCombo')
         self.usealltags_checkbox = self.findChild(QtWidgets.QCheckBox, 'useAllTagsCheckbox')
 
+        # Debug checkbox
+        self.usealltags_checkbox.setVisible(False)
+
         self.setWindowTitle(winTitle)
 
-        self.printLog('==---------------------------------==')
+        self.printLog('==---------------------------------==\n')
 
     def closeEvent(self, event):
         plt.close()
@@ -111,6 +120,12 @@ class MainWindow(QtWidgets.QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def ColorspaceCombo_changed(self):
+        if self.colorspace_combo.currentIndex() == 0:
+            self.colorspace_linear.setEnabled(False)
+        else:
+            self.colorspace_linear.setEnabled(True)
 
     def FileOpenButton_clicked(self):
         hmDir = str(Path.home())
@@ -184,7 +199,7 @@ class MainWindow(QtWidgets.QMainWindow):
         abt.exec_()
 
     def Apply_clicked(self):
-
+        
         if not self.file_input.text():
             QMessageBox.warning(self, 'Error', 'Input filename cannot be empty')
             return
@@ -269,11 +284,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             maxPixel = 500000
 
-        self.printLog('\nDiagram style: %s' % diagramtype)
+        self.printLog('Diagram style: %s' % diagramtype)
         self.printLog('Save file: %s' % saveOnly_checked)
         self.printLog('Input image: %s' % input_file)
-        self.printLog('Is Linear?: %s' % colorspace_isLinear)
-        self.printLog('No resize?: %s' % dontResize)
+        # self.printLog('Is Linear?: %s' % colorspace_isLinear)
+        # self.printLog('No resize?: %s' % dontResize)
         self.printLog('Plotting Density: %s' % plotdensity_index)
         if not dontResize:
             self.printLog('Max Pixel count: %i pixels' % maxPixel)
@@ -306,10 +321,16 @@ class MainWindow(QtWidgets.QMainWindow):
             infostr = ImageCms.getProfileDescription(prf).strip()
 
             customProfile = iccToTRC(prf)
+            pValidate = customProfile.validate()
             
             colorType = prf.profile.xcolor_space.strip()
             if colorType != 'RGB':
                 self.printLog('\n%s is not supported. Use RGB image instead' % colorType)
+                self.printLog('\n==---------------------------------==\n')
+                return
+
+            if not pValidate:
+                self.printLog('\nColor profile error.')
                 self.printLog('\n==---------------------------------==\n')
                 return
 
@@ -368,35 +389,62 @@ class MainWindow(QtWidgets.QMainWindow):
 
         RGB = colour.io.convert_bit_depth(img)
 
+
         if autoProfileValid:
 
             self.printLog('\nUsing embedded profile gamut and TRC')
-            self.printLog(customProfile.prfName)
+            self.printLog('Name: %s' % customProfile.prfName)
             self.printLog('ICC version: %.1f' % customProfile.prfVer)
-            self.printLog('TRC type:')
             trcType = customProfile.trcType
 
             if trcType == 'curv':
-                self.printLog('Curves')
+                self.printLog('TRC type: Curves')
                 curveLen = customProfile.curveLen
                 self.printLog('Length: %i' % curveLen)
                 if curveLen == 1:
                     self.printLog('Gamma: %.6f' % customProfile.gamma)
 
             elif trcType == 'para':
-                self.printLog('Parametric values:')
+                self.printLog('TRC type: Parametric\nValues:')
                 paraParams = ''.join(str(customProfile.paraParams))
                 self.printLog(paraParams)
 
             cProfile = customProfile.profileFromEmbed()
 
-            if useAllTRCTags:
-                RGBlin = customProfile.trcDecodeToLinear(RGB)
+            if not cProfile:
+                self.printLog('\n==---------------------------------==')
+                self.printLog('Plotting Failed')
+                if 'identity'.lower() in infostr.lower():
+                    self.printLog('IdentityRGB is not supported.')
+                else:
+                    self.printLog('Current color profile is not supported.')
+                self.printLog('==---------------------------------==\n')
+                return
+
+            if customProfile.uniformTRC:
+                self.printLog('TRC is uniform between channels.\nCalculate using single TRC.')
             else:
-                RGBlin = customProfile.trcDecodeToLinearSingle(RGB)
+                self.printLog('TRC is not uniform between channels.\nCalculate using all TRC instead.')
+
+            tA = time.perf_counter()
+
+            RGBlin = customProfile.trcDecode(RGB)
+            
+            # if useAllTRCTags:
+            #     print('Multithread')
+            #     RGBlin = customProfile.trcDecodeToLinear_MP(RGB)
+            # else:
+            #     print('Singlethread')
+            #     RGBlin = customProfile.trcDecodeToLinearSingle(RGB)
+
+            tB = time.perf_counter()
+            self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
 
         else:
+            tA = time.perf_counter()
             RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
+            tB = time.perf_counter()
+            self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
 
         ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
 
@@ -423,6 +471,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.printLog('\n==---------------------------------==')
         sSuccess = False
+
 
         #--------Here goes the plotting code--------------
         if diagramtype == 'CIE-1931':
@@ -456,7 +505,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 try:
                     self.printLog('Saving image, please wait...')
                     plot_RGB_chromaticities_in_chromaticity_diagram_CIE1931(
-                        RGBlin[...,0:3] if colorspace_isLinear == False else RGB[...,0:3],
+                        RGBlin[...,0:3] if colorspace_isLinear == False or autoProfileValid == True else RGB[...,0:3],
                         cProfile,
                         colourspaces=ovrSpace,
                         spectral_locus_colours="RGB",
@@ -476,7 +525,7 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 try:
                     plot_RGB_chromaticities_in_chromaticity_diagram_CIE1931(
-                        RGBlin[...,0:3] if colorspace_isLinear == False else RGB[...,0:3],
+                        RGBlin[...,0:3] if colorspace_isLinear == False or autoProfileValid == True else RGB[...,0:3],
                         cProfile,
                         colourspaces=ovrSpace,
                         spectral_locus_colours="RGB",
@@ -493,6 +542,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.printLog('Plotting Failed')
                     if 'identity'.lower() in infostr.lower():
                         self.printLog('IdentityRGB is not supported.')
+                    elif cProfile == '':
+                        self.printLog('Current color profile is not supported.')
                     self.printLog('==---------------------------------==\n')
                     plt.close()
         elif diagramtype == 'CIE-1976-UCS':
@@ -525,7 +576,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 try:
                     self.printLog('Saving image, please wait...')
                     plot_RGB_chromaticities_in_chromaticity_diagram_CIE1976UCS(
-                        RGBlin[...,0:3] if colorspace_isLinear == False else RGB[...,0:3],
+                        RGBlin[...,0:3] if colorspace_isLinear == False or autoProfileValid == True else RGB[...,0:3],
                         cProfile,
                         colourspaces=ovrSpace,
                         spectral_locus_colours="RGB",
@@ -544,7 +595,7 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 try:
                     plot_RGB_chromaticities_in_chromaticity_diagram_CIE1976UCS(
-                        RGBlin[...,0:3] if colorspace_isLinear == False else RGB[...,0:3],
+                        RGBlin[...,0:3] if colorspace_isLinear == False or autoProfileValid == True else RGB[...,0:3],
                         cProfile,
                         colourspaces=ovrSpace,
                         spectral_locus_colours="RGB",
@@ -561,6 +612,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.printLog('Plotting Failed')
                     if 'identity'.lower() in infostr.lower():
                         self.printLog('IdentityRGB is not supported.')
+                    elif cProfile == '':
+                        self.printLog('Current color profile is not supported.')
                     self.printLog('\n==---------------------------------==\n')
                     plt.close()
         else:

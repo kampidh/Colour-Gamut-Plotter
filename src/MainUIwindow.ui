@@ -132,13 +132,32 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="layoutWidget">
+   <widget class="QCheckBox" name="useAllTagsCheckbox">
     <property name="geometry">
      <rect>
-      <x>21</x>
-      <y>31</y>
-      <width>321</width>
-      <height>468</height>
+      <x>120</x>
+      <y>500</y>
+      <width>111</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>By default, the program will decide automatically to use single or all TRC
+This option will force all the TRC Tags applied to each channel independently
+
+However, using all TRC is painstakingly slow</string>
+    </property>
+    <property name="text">
+     <string>Use tags (debug)</string>
+    </property>
+   </widget>
+   <widget class="QWidget" name="">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>30</y>
+      <width>311</width>
+      <height>461</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout">
@@ -266,6 +285,13 @@
        </item>
        <item>
         <widget class="QCheckBox" name="ColorspaceLinearCheckbox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="toolTip">
+          <string>Set TRC to linear
+Have no effect while in Auto Detect mode</string>
+         </property>
          <property name="text">
           <string>Is Linear?</string>
          </property>
@@ -310,65 +336,66 @@
        </property>
       </widget>
      </item>
-     <item row="9" column="0" colspan="2">
-      <layout class="QHBoxLayout" name="horizontalLayout_5">
+     <item row="9" column="0">
+      <widget class="QComboBox" name="PlotDensityCombo">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
        <item>
-        <widget class="QComboBox" name="PlotDensityCombo">
-         <property name="currentIndex">
-          <number>1</number>
-         </property>
-         <item>
-          <property name="text">
-           <string>0 - Draft</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>1 - Lowest</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>2 - Low</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>3 - Medium</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>4 - High</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>5 - Highest</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>No Resize</string>
-          </property>
-         </item>
-        </widget>
+        <property name="text">
+         <string>0 - Draft</string>
+        </property>
        </item>
        <item>
-        <widget class="QCheckBox" name="useAllTagsCheckbox">
-         <property name="toolTip">
-          <string>By default, only the Red TRC Tag is used for all channel
-This option will utilize all the TRC Tags to each channel independently
-It could fix plotting for profile with different TRCs for each channel (like MarsRGB)
-
-However, this option is painstakingly slow</string>
-         </property>
-         <property name="text">
-          <string>Use all TRC Tags (Slow!)</string>
-         </property>
-        </widget>
+        <property name="text">
+         <string>1 - Lowest</string>
+        </property>
        </item>
-      </layout>
+       <item>
+        <property name="text">
+         <string>2 - Low</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>3 - Medium</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>4 - High</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>5 - Highest</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>No Resize</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="9" column="1">
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item row="10" column="0" colspan="2">
       <widget class="QLabel" name="label_7">
@@ -610,6 +637,22 @@ However smaller image won't be upsized.
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>ColorspaceCombo</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>ColorspaceCombo_changed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>100</x>
+     <y>155</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>449</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>FileOpenButton_clicked()</slot>
@@ -618,5 +661,6 @@ However smaller image won't be upsized.
   <slot>SaveAsCheckbox_changed()</slot>
   <slot>AboutButton_clicked()</slot>
   <slot>PlotDensityCombo_changed()</slot>
+  <slot>ColorspaceCombo_changed()</slot>
  </slots>
 </ui>
