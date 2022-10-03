@@ -345,6 +345,7 @@ class iccToTRC:
 
         if self.extractICCtag('chad') != -1:
             chAD_mtx = self.extractSF32data('chad')
+            # print(chAD_mtx)
             chad_exist = True
         else:
             chad_exist = False
@@ -352,6 +353,9 @@ class iccToTRC:
         pcsWhite_XYZ = self.extractXYZPCS()
         wt_pcs = colour.XYZ_to_xy(pcsWhite_XYZ)
         pWhite_XYZ = self.extractXYZdata('wtpt')
+
+        # print(wt_pcs)
+        # print(colour.XYZ_to_xy(pWhite_XYZ))
 
         sinMTX = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype=float)
 

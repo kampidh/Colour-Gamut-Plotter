@@ -35,6 +35,11 @@ from PIL import Image
 from tifffile import TiffFile
 import cv2
 
+# Workaround for big profile size in png files
+from PIL import PngImagePlugin
+maxchunk = 5
+PngImagePlugin.MAX_TEXT_CHUNK = maxchunk * (1024**2)
+
 # Workaround for pyinstaller not showing the pyplot window
 import matplotlib
 matplotlib.use('TkAgg')
@@ -43,7 +48,7 @@ from icctotrcMP import iccToTRC
 
 try:
     from ctypes import windll  # Windows only
-    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_8'
+    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_2'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -51,13 +56,14 @@ except ImportError:
 basedir = os.path.dirname(__file__)
 mainuifile = os.path.join(basedir,'MainUIwindow.ui')
 
-winVer = '1.8'
+winVer = '1.2'
 winTitle = 'Colour Gamut Plotter v' + winVer
 
 aboutText = '''
 2022 - Written by Kampidh<br>
 Licensed under GPL<br>
 Build with Python, PyQt, OpenCV, and <a href="https://www.colour-science.org/">Colour Science</a><br>
+Also Numpy, Pillow, and Tifffile<br>
 <br>
 <a href="https://github.com/kampidh/Colour-Gamut-Plotter">Github Project Page</a>
 '''
@@ -105,13 +111,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if event.mimeData().hasImage:
             event.setDropAction(Qt.CopyAction)
             file_path = event.mimeData().urls()[0].toLocalFile()
-            try:
-                prep = cv2.imread(file_path,-1)
-            except:
-                self.file_input.clear()
-                QMessageBox.warning(self, 'Error', 'Unsupported format')
-                event.ignore()
-                return
+            # Deprecated, causing slowdown when dropping a big image file.
+            # try:
+            #     prep = cv2.imread(file_path,-1)
+            # except:
+            #     self.file_input.clear()
+            #     QMessageBox.warning(self, 'Error', 'Unsupported format')
+            #     event.ignore()
+            #     return
             self.file_input.setText(file_path)
             event.accept()
         else:
@@ -128,13 +135,13 @@ class MainWindow(QtWidgets.QMainWindow):
         fInput = self.file_input.text()
         options = QFileDialog.Options()
         if not fInput:
-            fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.tif *.tiff *.bmp);;All Files (*)", options=options)
+            fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
         else:
             fDir = str(os.path.dirname(fInput))
             if os.path.isdir(fDir):
-                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", fDir,"Image Files (*.png *.jpg *.tif *.tiff *.bmp);;All Files (*)", options=options)
+                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", fDir,"Image Files (*.png *.jpg *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
             else:
-                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.tif *.tiff *.bmp);;All Files (*)", options=options)
+                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
         if fileName:
             self.file_input.setText(fileName)
 
@@ -322,9 +329,16 @@ class MainWindow(QtWidgets.QMainWindow):
             prepd = prep.dtype
             
         except:
-            self.printLog('Failed to open file, not a valid or unsupported image format')
-            self.printLog('\n==---------------------------------==\n')
-            return
+            self.printLog('Failed to read color metadata, try to read raw data instead')
+            # self.printLog('\n==---------------------------------==\n')
+            # return
+            try:
+                prep = cv2.imread(input_file,-1)
+                prepd = prep.dtype
+            except:
+                self.printLog('Failed to open file, not a valid or unsupported image format')
+                self.printLog('\n==---------------------------------==\n')
+                return
 
         if stinfo and autoClspc:
 
