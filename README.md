@@ -6,11 +6,11 @@ Written in **Python 3.10.7**
 ![Screenshot](Plotter-ss.png)
 
 ## Module Dependencies
-- colour-science (primary, optional, graphviz, plotting, meshing, freeimage)
-- matplotlib (for some reason in my case, it didn't installed from color-science optional)
-- pyqt5
-- opencv
-- tifffile
+- colour-science 0.4.1 (primary, optional, graphviz, plotting, meshing, freeimage)
+- matplotlib 3.6.0 (for some reason in my case, it didn't installed from color-science optional)
+- pyqt5 5.15.7
+- opencv-python 4.6.0.66
+- tifffile 2022.8.12
 
 ## Features
 - Image file opened with OpenCV instead, so image bit depth is preserved. As colour science read_image is using imageio and downsampled the image to 8 bit.
