@@ -24,6 +24,7 @@ import numpy as np
 from numpy import vectorize
 
 from numpy.linalg import inv
+from scipy import interpolate
 
 import concurrent.futures
 
@@ -171,13 +172,24 @@ class iccToTRC:
             calc = input ** self.trcCurvGammas[channel]
             return calc
         else:
-            return np.interp(input, self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1])
+            # use scipy interpolate to extrapolate values over 1.0 (HDR)
+            f = interpolate.interp1d(self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1], fill_value='extrapolate')
+            return f(input)
+
+            # numpy version
+            # return np.interp(input, self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1])
 
     #
     # experimental note 1
     #
     def paraCurveToLinearNP_Single(self, input: float, channel: int) -> float:
-        return np.interp(input, self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1])
+
+        # use scipy interpolate to extrapolate values over 1.0 (HDR)
+        f = interpolate.interp1d(self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1], fill_value='extrapolate')
+        return f(input)
+
+        # numpy version
+        # return np.interp(input, self.trcCurvLUTs[channel][0], self.trcCurvLUTs[channel][1])
 
     def trcParaToLinearSingle(self, x: float, *args) -> float:
         if len(args) == 1:
@@ -541,6 +553,9 @@ class iccToTRC:
         strSpace = self.prfByte[16:20].decode('utf-8').strip()
         return strSpace
 
+    #
+    # probably unused, as init will fail if any of these params fails
+    #
     def validate(self):
         headerTag = self.prfByte[36:40].decode('utf-8').strip()
         if headerTag != 'acsp':

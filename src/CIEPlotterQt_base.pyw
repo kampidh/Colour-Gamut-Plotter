@@ -311,7 +311,6 @@ class MainWindow(QtWidgets.QMainWindow):
         stinfo = ''
 
         try:
-
             if isTIFF:
                 # use tifffile to extract data from tiff file
                 tif = TiffFile(input_file)
@@ -348,12 +347,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # give it the byte stream of extracted icc data
             # either from PIL or tifffile
-            customProfile = iccToTRC(stinfo)
+            try:
+                customProfile = iccToTRC(stinfo)
+                infostr = customProfile.extractDescription()
+                cSpace = customProfile.extractColorSpace()
 
-            infostr = customProfile.extractDescription()
-            cSpace = customProfile.extractColorSpace()
-
-            pValidate = customProfile.validate()
+                pValidate = customProfile.validate()
+            except:
+                cSpace = 'RGB'
+                autoProfileValid = False
+                pValidate = False
             
             colorType = cSpace
             if colorType != 'RGB':
@@ -461,6 +464,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             RGBlin = customProfile.trcDecode(RGB)
             
+            # debug
             # if useAllTRCTags:
             #     print('Multithread')
             #     RGBlin = customProfile.trcDecodeToLinear_MP(RGB)
@@ -470,6 +474,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
             tB = time.perf_counter()
             self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
+
+            if np.any(RGBlin > 1.0):
+                self.printLog('Detected pixel value with >1.0, possibly an HDR image')
 
         else:
             tA = time.perf_counter()
@@ -567,7 +574,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         title="CIE 1931 Chromaticity Diagram",
                         bounding_box=chRange1931,
                     )
-                    
                     self.printLog('Plotting Completed')
                     self.printLog('==---------------------------------==\n')
                 except:
