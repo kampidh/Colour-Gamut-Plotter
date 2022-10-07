@@ -22,3 +22,4 @@ Written in **Python 3.10.7**
 ## Limitation
 - Only supports image with RGB model.
 - When opening a multiple page TIFF, only the first page that will be plotted.
+- Plotting large image with large plotting density will cause the app to be unresponsive until the calculation is complete.
