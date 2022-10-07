@@ -21,5 +21,4 @@ Written in **Python 3.10.7**
 
 ## Limitation
 - Only supports image with RGB model.
-- When opening a multiple page TIFF, only the first page that will be plotted
-- Profile detection only supports SDR image, HDR is still possible with floating-point linear profile TIFF image.
+- When opening a multiple page TIFF, only the first page that will be plotted.
