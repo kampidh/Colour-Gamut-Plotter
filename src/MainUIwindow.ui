@@ -151,7 +151,7 @@ However, using all TRC is painstakingly slow</string>
      <string>Use tags (debug)</string>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -279,6 +279,16 @@ However, using all TRC is painstakingly slow</string>
          <item>
           <property name="text">
            <string>Adobe RGB</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ITU-R BT.2020 - PQ</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ITU-R BT.2020 - HLG</string>
           </property>
          </item>
         </widget>

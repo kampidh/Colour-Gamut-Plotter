@@ -264,6 +264,12 @@ class MainWindow(QtWidgets.QMainWindow):
             colorspace = 'Display P3'
         elif colorspace_index == 4:
             colorspace = 'adobe1998'
+        elif colorspace_index == 5:
+            colorspace = 'ITU-R BT.2020'
+            trcFunc = 'ITU-R BT.2100 PQ'
+        elif colorspace_index == 6:
+            colorspace = 'ITU-R BT.2020'
+            trcFunc = 'ITU-R BT.2100 HLG'
 
         if diagramtype_index == 0:
             diagramtype = 'CIE-1931'
@@ -329,8 +335,6 @@ class MainWindow(QtWidgets.QMainWindow):
             
         except:
             self.printLog('Failed to read color metadata, try to read raw data instead')
-            # self.printLog('\n==---------------------------------==\n')
-            # return
             try:
                 prep = cv2.imread(input_file,-1)
                 prepd = prep.dtype
@@ -351,12 +355,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 customProfile = iccToTRC(stinfo)
                 infostr = customProfile.extractDescription()
                 cSpace = customProfile.extractColorSpace()
-
-                pValidate = customProfile.validate()
-            except:
+                # pValidate = customProfile.validate() # Deprecated, unused outside the module
+            except Exception as e:
                 cSpace = 'RGB'
                 autoProfileValid = False
-                pValidate = False
+                self.printLog('\n' + str(e))
+                self.printLog('Color profile reading error, using sRGB instead')
+                cProfile = 'sRGB'
+                trcFunc = 'sRGB'
             
             colorType = cSpace
             if colorType != 'RGB':
@@ -364,11 +370,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.printLog('\n==---------------------------------==\n')
                 return
 
-            if not pValidate:
-                autoProfileValid = False
-                self.printLog('\nColor profile reading error, using sRGB instead')
-                cProfile = 'sRGB'
-                trcFunc = 'sRGB'
+            # Deprecated, unused
+            # if not pValidate:
+            #     autoProfileValid = False
+            #     self.printLog('\nColor profile reading error, using sRGB instead')
+            #     cProfile = 'sRGB'
+            #     trcFunc = 'sRGB'
 
         else:
             autoProfileValid = False
@@ -379,7 +386,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 trcFunc = 'sRGB'
             else:
                 cProfile = colorspace
-                trcFunc = 'sRGB'
+                # trcFunc = 'sRGB'
 
         np.seterr(divide='ignore', invalid='ignore')
         
@@ -443,7 +450,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 paraParams = ''.join(str(customProfile.paraParams))
                 self.printLog(paraParams)
 
+            elif trcType == 'A2B0':
+                self.printLog('TRC type: A2B0')
+
             cProfile = customProfile.profileFromEmbed()
+            if not customProfile.prfPCS_white_check:
+                self.printLog('Warning: Embedded profile PCS illuminant is not D50')
 
             if not cProfile:
                 self.printLog('\n==---------------------------------==')
@@ -480,9 +492,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         else:
             tA = time.perf_counter()
-            RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
+            if colorspace_index < 5:
+                RGBlin = colour.cctf_decoding(RGB, function=trcFunc)
+            else:
+                # HDR PQ and HLG
+                RGBlin = colour.oetf_inverse(RGB, function=trcFunc)
             tB = time.perf_counter()
             self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
+
+        # print(np.amax(RGBlin))
 
         ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
 
