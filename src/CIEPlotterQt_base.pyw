@@ -84,6 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotdensity_combo = self.findChild(QtWidgets.QComboBox, 'PlotDensityCombo')
         self.diagramtype_combo = self.findChild(QtWidgets.QComboBox, 'DiagramTypeCombo')
         self.usealltags_checkbox = self.findChild(QtWidgets.QCheckBox, 'useAllTagsCheckbox')
+        self.hiressize_spin = self.findChild(QtWidgets.QSpinBox, 'HiresSizeSpinBox')
 
         # Debug checkbox
         self.usealltags_checkbox.setVisible(False)
@@ -189,9 +190,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.save_checkbox.isChecked():
             self.output_btn.setEnabled(True)
             self.output_dir.setEnabled(True)
+            self.hiressize_spin.setEnabled(True)
         else:
             self.output_btn.setEnabled(False)
             self.output_dir.setEnabled(False)
+            self.hiressize_spin.setEnabled(False)
 
     def AboutButton_clicked(self):
         abt = QMessageBox()
@@ -228,6 +231,7 @@ class MainWindow(QtWidgets.QMainWindow):
         diagramtype_index = self.diagramtype_combo.currentIndex()
         saveOnly_checked = self.save_checkbox.isChecked()
         saveOutput_dir = self.output_dir.text()
+        hires_size = self.hiressize_spin.value() / 100
 
         # debug
         useAllTRCTags = self.usealltags_checkbox.isChecked()
@@ -310,7 +314,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.printLog('Color Space: %s' % colorspace + '\n')
 
         if saveOnly_checked:
-            pltSize = [25, 25]
+            # pltSize = [25, 25]
+            pltSize = [hires_size, hires_size]
         else:
             pltSize = [12, 12]
 
