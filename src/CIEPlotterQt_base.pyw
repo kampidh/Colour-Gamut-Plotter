@@ -440,7 +440,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.printLog('\nUsing embedded profile gamut and TRC')
             self.printLog('Name: %s' % customProfile.prfName)
-            self.printLog('ICC version: %.1f' % customProfile.prfVer)
+            self.printLog('ICC version: %.2f' % customProfile.prfVer)
             trcType = customProfile.trcType
 
             if trcType == 'curv':

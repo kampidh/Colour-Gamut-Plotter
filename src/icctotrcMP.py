@@ -261,9 +261,9 @@ class iccToTRC:
                     ]
                 elif a2b0_M.find(b'curv') != -1:
                     a2b0_Mcurv_ndx = []
-                    a2b0_Mcurv_ndx.append(a2b0_M[0:].find(b'para'))
-                    a2b0_Mcurv_ndx.append(a2b0_M.find(b'para', (a2b0_Mcurv_ndx[0] + 4)))
-                    a2b0_Mcurv_ndx.append(a2b0_M.find(b'para', (a2b0_Mcurv_ndx[1] + 4)))
+                    a2b0_Mcurv_ndx.append(a2b0_M[0:].find(b'curv'))
+                    a2b0_Mcurv_ndx.append(a2b0_M.find(b'curv', (a2b0_Mcurv_ndx[0] + 4)))
+                    a2b0_Mcurv_ndx.append(a2b0_M.find(b'curv', (a2b0_Mcurv_ndx[1] + 4)))
 
                     self.a2b0_Mtrc = [
                         self.curvModeGetTableSA(a2b0_M[a2b0_Mcurv_ndx[0]:a2b0_Mcurv_ndx[1]]),
@@ -295,9 +295,9 @@ class iccToTRC:
                     ]
                 elif a2b0_M.find(b'para') != -1:
                     a2b0_Acurv_ndx = []
-                    a2b0_Acurv_ndx.append(a2b0_A[0:].find(b'curv'))
-                    a2b0_Acurv_ndx.append(a2b0_A.find(b'curv', (a2b0_Acurv_ndx[0] + 4)))
-                    a2b0_Acurv_ndx.append(a2b0_A.find(b'curv', (a2b0_Acurv_ndx[1] + 4)))
+                    a2b0_Acurv_ndx.append(a2b0_A[0:].find(b'para'))
+                    a2b0_Acurv_ndx.append(a2b0_A.find(b'para', (a2b0_Acurv_ndx[0] + 4)))
+                    a2b0_Acurv_ndx.append(a2b0_A.find(b'para', (a2b0_Acurv_ndx[1] + 4)))
 
                     self.a2b0_Atrc = [
                         self.trcParaToCurv(self.parametricParseSA(a2b0_A[a2b0_Acurv_ndx[0]:a2b0_Acurv_ndx[1]])),
@@ -331,9 +331,9 @@ class iccToTRC:
                     ]
                 elif a2b0_M.find(b'para') != -1:
                     a2b0_Bcurv_ndx = []
-                    a2b0_Bcurv_ndx.append(a2b0_B[0:].find(b'curv'))
-                    a2b0_Bcurv_ndx.append(a2b0_B.find(b'curv', (a2b0_Bcurv_ndx[0] + 4)))
-                    a2b0_Bcurv_ndx.append(a2b0_B.find(b'curv', (a2b0_Bcurv_ndx[1] + 4)))
+                    a2b0_Bcurv_ndx.append(a2b0_B[0:].find(b'para'))
+                    a2b0_Bcurv_ndx.append(a2b0_B.find(b'para', (a2b0_Bcurv_ndx[0] + 4)))
+                    a2b0_Bcurv_ndx.append(a2b0_B.find(b'para', (a2b0_Bcurv_ndx[1] + 4)))
 
                     self.a2b0_Btrc = [
                         self.trcParaToCurv(self.parametricParseSA(a2b0_B[a2b0_Bcurv_ndx[0]:a2b0_Bcurv_ndx[1]])),
