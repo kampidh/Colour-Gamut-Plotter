@@ -20,7 +20,7 @@ import os, sys
 import posixpath
 import time
 from PyQt5 import QtWidgets, QtGui, uic
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QProgressDialog
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtCore import Qt
 
 import colour
@@ -582,6 +582,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
                         title="CIE 1931 Chromaticity Diagram",
+                        transparent_background=False,
                         bounding_box=chRange1931,
                         filename=fiName,
                     )
@@ -602,6 +603,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
                         title="CIE 1931 Chromaticity Diagram",
+                        transparent_background=False,
                         bounding_box=chRange1931,
                     )
                     self.printLog('Plotting Completed')
@@ -653,6 +655,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
                         title="CIE 1976 UCS Chromaticity Diagram",
+                        transparent_background=False,
                         bounding_box=chRange1976,
                         filename=fiName,
                     )
@@ -673,6 +676,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
                         title="CIE 1976 UCS Chromaticity Diagram",
+                        transparent_background=False,
                         bounding_box=chRange1976,
                     )
                     self.printLog('Plotting Completed')
