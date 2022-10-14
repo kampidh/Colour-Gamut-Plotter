@@ -20,7 +20,7 @@ import os, sys
 import posixpath
 import time
 from PyQt5 import QtWidgets, QtGui, uic
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QProgressDialog
 from PyQt5.QtCore import Qt
 
 import colour
@@ -224,6 +224,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 QMessageBox.warning(self, 'Error', 'Output directory invalid or not exist')
                 return
 
+        
+        self.apply_btn.setEnabled(False)
+
         input_file = self.file_input.text()
         colorspace_index = self.colorspace_combo.currentIndex()
         colorspace_isLinear = self.colorspace_linear.isChecked()
@@ -348,6 +351,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.printLog('\n==---------------------------------==\n')
                 return
 
+
         if stinfo and autoClspc:
 
             autoProfileValid = True
@@ -415,6 +419,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.printLog("Final pixel count: %i pixels | %.3f MPixels" % (finSize, finSize / 1000000))
 
         imSize = prep.shape[0] * prep.shape[1]
+
 
         if imSize <= 50000:
             scAlpha = 0.9
@@ -529,6 +534,8 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 fName = os.path.join(saveOutput_dir, outFileName)
                 fiName = fName.replace(os.sep, posixpath.sep)
+        else:
+            self.apply_btn.setEnabled(True)
 
         self.printLog('\n==---------------------------------==')
         sSuccess = False
@@ -683,6 +690,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.printLog('\n==---------------------------------==\n')
 
         if saveOnly_checked:
+            self.apply_btn.setEnabled(True)
             if sSuccess:
                 self.printLog('Save completed')
                 self.printLog(fiName)
@@ -693,6 +701,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def printLog(self, logtxt):
         self.log_output.appendPlainText(logtxt)
+        QtGui.QGuiApplication.processEvents()
 
 
 def main():
