@@ -349,6 +349,7 @@ class MainWindow(QtWidgets.QMainWindow):
             except:
                 self.printLog('Failed to open file, not a valid or unsupported image format')
                 self.printLog('\n==---------------------------------==\n')
+                self.apply_btn.setEnabled(True)
                 return
 
 
@@ -377,6 +378,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if colorType != 'RGB':
                 self.printLog('\n%s is not supported. Use RGB image instead' % colorType)
                 self.printLog('\n==---------------------------------==\n')
+                self.apply_btn.setEnabled(True)
                 return
 
             # Deprecated, unused
@@ -442,10 +444,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
         if autoProfileValid:
+            cProfile = customProfile.profileFromEmbed()
 
             self.printLog('\nUsing embedded profile gamut and TRC')
             self.printLog('Name: %s' % customProfile.prfName)
             self.printLog('ICC version: %.2f' % customProfile.prfVer)
+            wtpoint = customProfile.prfWhite
+            self.printLog(f'Profile whitepoint: x:{round(wtpoint[0], 6)}, y:{round(wtpoint[1], 6)}')
             trcType = customProfile.trcType
 
             if trcType == 'curv':
@@ -463,7 +468,6 @@ class MainWindow(QtWidgets.QMainWindow):
             elif trcType == 'A2B0':
                 self.printLog('TRC type: A2B0')
 
-            cProfile = customProfile.profileFromEmbed()
             if not customProfile.prfPCS_white_check:
                 self.printLog('Warning: Embedded profile PCS illuminant is not D50')
 
@@ -530,7 +534,9 @@ class MainWindow(QtWidgets.QMainWindow):
                         os.makedirs(newHomeDir)
                     fiName = os.path.join(newHomeDir, outFileName)
                 except:
-                    print('Failed to create a folder to save image')
+                    self.printLog('Failed to create a folder to save image')
+                    self.apply_btn.setEnabled(True)
+                    return
             else:
                 fName = os.path.join(saveOutput_dir, outFileName)
                 fiName = fName.replace(os.sep, posixpath.sep)

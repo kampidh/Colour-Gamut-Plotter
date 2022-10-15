@@ -41,6 +41,8 @@ class iccToTRC:
         self.prfType = ''
         self.prfPCS_white_check = True
 
+        self.prfWhite = None
+
         if self.validate():
             self.prfType = 'sdr'
             self.trcType = self.extractICCtag('rTRC')[0:4].decode('utf-8').strip()
@@ -764,13 +766,15 @@ class iccToTRC:
 
         pRGBD50 = np.array([pRedPrimary[0], pRedPrimary[1], pGreenPrimary[0], pGreenPrimary[1], pBluePrimary[0], pBluePrimary[1]])
 
-        try:
-            pRGBD65 = colour.chromatically_adapted_primaries(pRGBD50, wt_pcs, wt_prf, 'Bradford')
-        except:
-            pRGBD65 = pRGBD50
+        self.prfWhite = wt_prf
 
         try:
-            colourspace = colour.RGB_Colourspace(p_Name, pRGBD65, wt_prf)
+            pRGB_CA = colour.chromatically_adapted_primaries(pRGBD50, wt_pcs, wt_prf, 'Bradford')
+        except:
+            pRGB_CA = pRGBD50
+
+        try:
+            colourspace = colour.RGB_Colourspace(p_Name, pRGB_CA, wt_prf)
         except:
             colourspace = ''
 
