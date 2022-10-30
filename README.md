@@ -1,5 +1,7 @@
 # Colour-Gamut-Plotter
-A simple GUI for [Colour-Science](https://www.colour-science.org/) **plot_RGB_chromaticities_in_chromaticity_diagram** function
+A simple GUI for [Colour-Science](https://www.colour-science.org/) **plot_RGB_chromaticities_in_chromaticity_diagram** function.
+
+*(Alpha: Draft plotting with vispy)*
 
 Written in **Python 3.10.7**
 
@@ -11,6 +13,7 @@ Written in **Python 3.10.7**
 - pyqt5 5.15.7
 - opencv-python 4.6.0.66
 - tifffile 2022.8.12
+- vispy 0.11.0
 
 ## Features
 - Image file opened with OpenCV instead, so image bit depth is preserved. As colour science read_image is using imageio and downsampled the image to 8 bit.
