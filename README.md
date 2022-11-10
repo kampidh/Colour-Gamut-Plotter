@@ -1,7 +1,7 @@
 # Colour-Gamut-Plotter
 A simple GUI for [Colour-Science](https://www.colour-science.org/) **plot_RGB_chromaticities_in_chromaticity_diagram** function.
 
-*(Alpha: Draft plotting with vispy)*
+*(Beta: Draft plotting with vispy and image loading with libvips)*
 
 Written in **Python 3.10.7**
 
@@ -12,8 +12,9 @@ Written in **Python 3.10.7**
 - matplotlib 3.6.0 (for some reason in my case, it didn't installed from color-science optional)
 - pyqt5 5.15.7
 - opencv-python 4.6.0.66
-- tifffile 2022.8.12
+- ~~tifffile 2022.8.12~~
 - vispy 0.11.0
+- pyvips 2.2.1 along with libvips >= 8.13.2
 
 ## Features
 - Image file opened with OpenCV instead, so image bit depth is preserved. As colour science read_image is using imageio and downsampled the image to 8 bit.
@@ -21,6 +22,8 @@ Written in **Python 3.10.7**
 - Automatic detection if the embedded profile have different per-channel TRC
 - Selectable plotting density. If image is bigger than the plotting density, image is resized with Nearest Neighbour so no interpolation is happening.
 - Selectable diagram mode, between CIE 1930 or CIE 1976 UCS Chromaticity diagram.
+- Rapid preview with vispy. Check 'Experimental features' to try it.
+- Extended format support from libvips, including JPEG XL support.
 
 ## Limitation
 - Only supports image with RGB model.

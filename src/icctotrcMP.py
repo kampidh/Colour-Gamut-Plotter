@@ -42,6 +42,10 @@ class iccToTRC:
         self.prfPCS_white_check = True
 
         self.prfWhite = None
+        self.prfWhiteXYZ = None
+        self.pcsWhite = self.extractXYZPCS()
+
+        self.primariesCA = None
 
         if self.validate():
             self.prfType = 'sdr'
@@ -732,7 +736,8 @@ class iccToTRC:
 
         if not wt_pcs_D50_byte == wt_pcs_profile_byte:
             warnings.warn("Embedded profile PCS illuminant is not D50")
-            self.prfPCS_white_check = False
+            # self.prfPCS_white_check = False
+            self.prfPCS_white_check = True
         else:
             self.prfPCS_white_check = True
 
@@ -755,9 +760,11 @@ class iccToTRC:
             pWhiteCA = np.dot(pCAinv, pcsWhite_XYZ)
             pWhitexy = colour.XYZ_to_xy(pWhiteCA)
             wt_prf = pWhitexy
+            self.prfWhiteXYZ = pWhiteCA
         else:
             # else, take from the media_white_point tag
             wt_prf = colour.XYZ_to_xy(pWhite_XYZ)
+            self.prfWhiteXYZ = pWhite_XYZ
 
         if pName:
             p_Name = pName
@@ -772,6 +779,8 @@ class iccToTRC:
             pRGB_CA = colour.chromatically_adapted_primaries(pRGBD50, wt_pcs, wt_prf, 'Bradford')
         except:
             pRGB_CA = pRGBD50
+
+        self.primariesCA = pRGB_CA
 
         try:
             colourspace = colour.RGB_Colourspace(p_Name, pRGB_CA, wt_prf)
