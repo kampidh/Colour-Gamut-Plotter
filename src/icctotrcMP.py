@@ -28,6 +28,9 @@ from scipy import interpolate
 
 import concurrent.futures
 
+# debug only
+# import matplotlib.pyplot as plt
+
 class iccToTRC:
     def __init__(self, profile: bytes):
         self.prfByte = profile
@@ -48,7 +51,7 @@ class iccToTRC:
         self.primariesCA = None
 
         if self.validate():
-            self.prfType = 'sdr'
+            self.prfType = 'std'
             self.trcType = self.extractICCtag('rTRC')[0:4].decode('utf-8').strip()
 
             self.curveLen = int.from_bytes(self.extractICCtag('rTRC')[8:12], 'big')
@@ -127,7 +130,7 @@ class iccToTRC:
             self.vTRCParaToLinearSingle = vectorize(self.trcParaToLinearSingle)
 
 
-        elif self.findTagPos('A2B0') != -1:
+        elif self.findTagPos('A2B0') != -1 and (self.extractICCtag('A2B0')[0:4].decode('utf-8').strip() == 'mAB'):
 
             ##
             ## Workaround for HDR PQ Profile from PNG
@@ -138,9 +141,9 @@ class iccToTRC:
             ## the end result of this module's calculation is a linear RGB, not XYZ
             ##
 
-            self.trcType = 'A2B0'
+            self.trcType = 'A2B0 mAB'
             self.uniformTRC = False
-            self.prfType = 'hdr'
+            self.prfType = 'mab'
 
             a2b0_buf = self.extractICCtag('A2B0')
 
@@ -358,24 +361,103 @@ class iccToTRC:
                 self.uniformTRC = True
             else:
                 self.uniformTRC = False
+
+        elif self.findTagPos('A2B0') != -1 and (self.extractICCtag('A2B0')[0:4].decode('utf-8').strip() == 'mft2'):
+            self.trcType = 'A2B0 mft2'
+            self.uniformTRC = False
+            self.prfType = 'mft2'
+
+            a2b0_buf = self.extractICCtag('A2B0')
+            
+            a2b0_inCh = int(a2b0_buf[8])
+            a2b0_outCh = int(a2b0_buf[9])
+            a2b0_clutpoints = int(a2b0_buf[10])
+            a2b0_clutsize = (a2b0_clutpoints ** a2b0_inCh) * a2b0_outCh * 2
+
+            # throw if not 3 channels
+            if a2b0_inCh != 3 or a2b0_outCh != 3:
+                raise Exception(f'Colour Channel mismatch, should be 3 but detected in:{a2b0_inCh} out:{a2b0_outCh}')
+
+            a2b0_mat = np.array([
+                [self.s15Fixed16NumberToFloat(a2b0_buf[12:16]), self.s15Fixed16NumberToFloat(a2b0_buf[16:20]), self.s15Fixed16NumberToFloat(a2b0_buf[20:24])],
+                [self.s15Fixed16NumberToFloat(a2b0_buf[24:28]), self.s15Fixed16NumberToFloat(a2b0_buf[28:32]), self.s15Fixed16NumberToFloat(a2b0_buf[32:36])],
+                [self.s15Fixed16NumberToFloat(a2b0_buf[36:40]), self.s15Fixed16NumberToFloat(a2b0_buf[40:44]), self.s15Fixed16NumberToFloat(a2b0_buf[44:48])]
+            ])
+
+            a2b0_inTabLen = int.from_bytes(a2b0_buf[48:50], 'big')
+            a2b0_outTabLen = int.from_bytes(a2b0_buf[50:52], 'big')
+
+            a2b0_inTabPos = 52
+            a2b0_clutPos = a2b0_inTabPos + (a2b0_inTabLen * 2 * 3)
+            a2b0_outTabPos = a2b0_clutPos + round(a2b0_clutsize)
+
+            a2b0_inTable = [
+                self.a2b0MFT2GetTableSA(a2b0_buf[a2b0_inTabPos:a2b0_inTabPos+(a2b0_inTabLen * 2)]),
+                self.a2b0MFT2GetTableSA(a2b0_buf[a2b0_inTabPos+(a2b0_inTabLen * 2):a2b0_inTabPos+(a2b0_inTabLen * 4)]),
+                self.a2b0MFT2GetTableSA(a2b0_buf[a2b0_inTabPos+(a2b0_inTabLen * 4):a2b0_inTabPos+(a2b0_inTabLen * 6)]),
+            ]
+
+            a2b0_outTable = [
+                self.a2b0MFT2GetTableSA(a2b0_buf[a2b0_outTabPos:a2b0_outTabPos+(a2b0_outTabLen * 2)]),
+                self.a2b0MFT2GetTableSA(a2b0_buf[a2b0_outTabPos+(a2b0_outTabLen * 2):a2b0_outTabPos+(a2b0_outTabLen * 4)]),
+                self.a2b0MFT2GetTableSA(a2b0_buf[a2b0_outTabPos+(a2b0_outTabLen * 4):a2b0_outTabPos+(a2b0_outTabLen * 6)]),
+            ]
+
+            a2b0_LUTlen = a2b0_clutpoints ** 3
+            a2b0_LUTentries = a2b0_buf[a2b0_clutPos:a2b0_outTabPos]
+
+            a2b0_LUTbuf = []
+            for x in range(a2b0_LUTlen):
+                a2b0_LUTbuf.append(
+                    [
+                        int.from_bytes(a2b0_LUTentries[(x*6):(x*6)+2], 'big')/65535,
+                        int.from_bytes(a2b0_LUTentries[(x*6)+2:(x*6)+4], 'big')/65535,
+                        int.from_bytes(a2b0_LUTentries[(x*6)+4:(x*6)+6], 'big')/65535,
+                    ])
+
+            a2b0_LUTarr = np.reshape(a2b0_LUTbuf, (a2b0_clutpoints,a2b0_clutpoints,a2b0_clutpoints,3))
+            a2b0_LUTapp = colour.LUT3D(a2b0_LUTarr)
+
+            self.trcCurvLUTs = a2b0_inTable
+            self.trcTypes = ['curv', 'curv', 'curv']
+            self.trcCurvLens = [a2b0_inTabLen, a2b0_inTabLen, a2b0_inTabLen]
+
+            if np.all(self.trcCurvLUTs == self.trcCurvLUTs[0]):
+                self.uniformTRC = True
+            else:
+                self.uniformTRC = False
+
+            self.primaries = np.array([
+                a2b0_LUTapp.apply([1,0,0]),
+                a2b0_LUTapp.apply([0,1,0]),
+                a2b0_LUTapp.apply([0,0,1])
+            ])
+
         else:
             raise Exception('Profile not supported')
 
 
     def trcDecode(self, input):
-        if self.prfType == 'sdr':
+        if self.prfType == 'std':
             if self.uniformTRC:
                 result = self.trcDecodeToLinearSingle(input)
                 # result = self.trcDecodeToLinear_MP(input) # debug
             else:
                 result = self.trcDecodeToLinear_MP(input)
             return result
-        elif self.prfType == 'hdr':
+        elif self.prfType == 'mab':
             if self.uniformTRC:
                 result = self.trcDecodeA2B0Single(input)
                 # result = self.trcDecodeA2B0_MP(input) # debug
             else:
                 result = self.trcDecodeA2B0_MP(input)
+            return result
+        elif self.prfType == 'mft2':
+            if self.uniformTRC:
+                result = self.trcDecodeToLinearSingle(input)
+                # result = self.trcDecodeA2B0_MP(input) # debug
+            else:
+                result = self.trcDecodeToLinear_MP(input)
             return result
 
     def trcDecodeToLinear_MP(self, input):
@@ -652,6 +734,39 @@ class iccToTRC:
         tb = np.array([xNorm, yNorm])
         return tb
 
+    def a2b0MFT2GetTableSA(self, byteIn):
+
+        curveLen = round(len(byteIn) / 2)
+        curveCont = byteIn
+
+        if curveLen == 1:
+            return False
+        if curveLen == 0:
+            # Identity function
+            return np.array([[0, 1], [0, 1]], dtype='float')
+
+        LUTndx = []
+        LUTlist = []
+
+        for x in range(curveLen*2):
+            if x % 2 != 0:
+                continue
+            ndx = int(x/2)
+            LUTndx.append(ndx)
+            LUTlist.append(int.from_bytes(curveCont[x:x+2], 'big'))
+
+        LUTndxN = np.array(LUTndx)
+        LUTlistN = np.array(LUTlist)
+
+        xMax = np.max(LUTndxN)
+        yMax = np.max(LUTlistN)
+
+        xNorm = np.array(LUTndxN / xMax)
+        yNorm = np.array(LUTlistN / yMax)
+
+        tb = np.array([xNorm, yNorm])
+        return tb
+
     def parametricParse(self, tag: str) -> list:
         paraParams = []
 
@@ -727,6 +842,13 @@ class iccToTRC:
         pRedPrimary = colour.XYZ_to_xy(self.primaries[0])
         pGreenPrimary = colour.XYZ_to_xy(self.primaries[1])
         pBluePrimary = colour.XYZ_to_xy(self.primaries[2])
+
+        if np.any(pRedPrimary == 0):
+            pRedPrimary = pRedPrimary + 0.0000001
+        if np.any(pGreenPrimary == 0):
+            pGreenPrimary = pGreenPrimary + 0.0000001
+        if np.any(pBluePrimary == 0):
+            pBluePrimary = pBluePrimary + 0.0000001
 
         wt_pcs = np.array([0.34570292, 0.35853753])
         wt_d65 = np.array([0.31270049, 0.32900094])

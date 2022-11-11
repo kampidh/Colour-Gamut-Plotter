@@ -309,6 +309,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             isTIFF = False
 
+        if input_file.find('.exr') != -1 :
+            colorspace_isLinear = True
+
         self.printLog('Diagram style: %s' % diagramtype)
         self.printLog('Save file: %s' % saveOnly_checked)
         self.printLog('Input image: %s' % input_file)
@@ -488,8 +491,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 paraParams = ''.join(str(customProfile.paraParams))
                 self.printLog(paraParams)
 
-            elif trcType == 'A2B0':
-                self.printLog('TRC type: A2B0')
+            elif trcType == 'A2B0 mAB':
+                self.printLog('TRC type: A2B0 mAB')
+
+            elif trcType == 'A2B0 mft2':
+                self.printLog('TRC type: A2B0 mft2')
 
             if not customProfile.prfPCS_white_check:
                 self.printLog('Warning: Embedded profile PCS illuminant is not D50')
