@@ -135,9 +135,9 @@
    <widget class="QCheckBox" name="useAllTagsCheckbox">
     <property name="geometry">
      <rect>
-      <x>120</x>
+      <x>190</x>
       <y>500</y>
-      <width>111</width>
+      <width>131</width>
       <height>17</height>
      </rect>
     </property>
@@ -148,10 +148,10 @@ This option will force all the TRC Tags applied to each channel independently
 However, using all TRC is painstakingly slow</string>
     </property>
     <property name="text">
-     <string>Use tags (debug)</string>
+     <string>Experimental features</string>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>31</x>

@@ -31,20 +31,23 @@ from pathlib import Path
 import numpy as np
 from math import floor
 
-from PIL import Image
-from tifffile import TiffFile
+# from PIL import Image
+# from tifffile import TiffFile
 import cv2
+import pyvips
 
 # Workaround for big profile size in png files
-from PIL import PngImagePlugin
-maxchunk = 5
-PngImagePlugin.MAX_TEXT_CHUNK = maxchunk * (1024**2)
+# from PIL import PngImagePlugin
+# maxchunk = 5
+# PngImagePlugin.MAX_TEXT_CHUNK = maxchunk * (1024**2)
 
 # Workaround for pyinstaller not showing the pyplot window
 import matplotlib
 matplotlib.use('TkAgg')
+# matplotlib.use('QtAgg')
 
 from icctotrcMP import iccToTRC
+import vispy.plot as vp
 
 try:
     from ctypes import windll  # Windows only
@@ -87,7 +90,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hiressize_spin = self.findChild(QtWidgets.QSpinBox, 'HiresSizeSpinBox')
 
         # Debug checkbox
-        self.usealltags_checkbox.setVisible(False)
+        # self.usealltags_checkbox.setVisible(False)
 
         self.setWindowTitle(winTitle)
 
@@ -136,13 +139,13 @@ class MainWindow(QtWidgets.QMainWindow):
         fInput = self.file_input.text()
         options = QFileDialog.Options()
         if not fInput:
-            fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
+            fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.jxl *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
         else:
             fDir = str(os.path.dirname(fInput))
             if os.path.isdir(fDir):
-                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", fDir,"Image Files (*.png *.jpg *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
+                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", fDir,"Image Files (*.png *.jpg *.jxl *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
             else:
-                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
+                fileName, _ = QFileDialog.getOpenFileName(self,"Select Image...", hmDir,"Image Files (*.png *.jpg *.jxl *.jfif *.tif *.tiff *.bmp);;All Files (*)", options=options)
         if fileName:
             self.file_input.setText(fileName)
 
@@ -306,6 +309,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             isTIFF = False
 
+        if input_file.find('.exr') != -1 :
+            colorspace_isLinear = True
+
         self.printLog('Diagram style: %s' % diagramtype)
         self.printLog('Save file: %s' % saveOnly_checked)
         self.printLog('Input image: %s' % input_file)
@@ -324,27 +330,47 @@ class MainWindow(QtWidgets.QMainWindow):
 
         stinfo = ''
 
+        # try:
+        #     if isTIFF:
+        #         # use tifffile to extract data from tiff file
+        #         tif = TiffFile(input_file)
+        #         prep_a = tif.pages[0].asarray()
+        #         stinfo = tif.pages[0].tags['InterColorProfile'].value
+        #         tif.close()
+        #         prep = cv2.cvtColor(prep_a, cv2.COLOR_RGB2BGR)
+        #     else:
+        #         # use PIL instead for other images
+        #         im = Image.open(input_file)
+        #         # im.load()
+        #         # print(im.info)
+        #         stinfo = im.info.get('icc_profile')
+        #         im.close()
+        #         prep = cv2.imread(input_file,-1)
+
+        #     prepd = prep.dtype
+
         try:
-            if isTIFF:
-                # use tifffile to extract data from tiff file
-                tif = TiffFile(input_file)
-                prep_a = tif.pages[0].asarray()
-                stinfo = tif.pages[0].tags['InterColorProfile'].value
-                tif.close()
-                prep = cv2.cvtColor(prep_a, cv2.COLOR_RGB2BGR)
+            image = pyvips.Image.new_from_file(input_file, access='sequential')
+            prep_a = image.numpy()
+            stinfo = image.get('icc-profile-data')
+            if isTIFF and (prep_a.dtype == 'float32' or prep_a.dtype == 'float16'):
+                # float tiff files are blown out somehow by pyvips/libvips
+                prep = cv2.cvtColor(prep_a/255, cv2.COLOR_RGB2BGR)
             else:
-                # use PIL instead for other images
-                im = Image.open(input_file)
-                stinfo = im.info.get('icc_profile')
-                im.close()
-                prep = cv2.imread(input_file,-1)
+                prep = cv2.cvtColor(prep_a, cv2.COLOR_RGB2BGR)
 
             prepd = prep.dtype
             
         except:
             self.printLog('Failed to read color metadata, try to read raw data instead')
             try:
-                prep = cv2.imread(input_file,-1)
+                image = pyvips.Image.new_from_file(input_file)
+                prep_a = image.numpy()
+                if isTIFF:
+                    prep = cv2.cvtColor(prep_a/255, cv2.COLOR_RGB2BGR)
+                else:
+                    prep = cv2.cvtColor(prep_a, cv2.COLOR_RGB2BGR)
+                # prep = cv2.imread(input_file,-1)
                 prepd = prep.dtype
             except:
                 self.printLog('Failed to open file, not a valid or unsupported image format')
@@ -465,8 +491,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 paraParams = ''.join(str(customProfile.paraParams))
                 self.printLog(paraParams)
 
-            elif trcType == 'A2B0':
-                self.printLog('TRC type: A2B0')
+            elif trcType == 'A2B0 mAB':
+                self.printLog('TRC type: A2B0 mAB')
+
+            elif trcType == 'A2B0 mft2':
+                self.printLog('TRC type: A2B0 mft2')
 
             if not customProfile.prfPCS_white_check:
                 self.printLog('Warning: Embedded profile PCS illuminant is not D50')
@@ -489,6 +518,10 @@ class MainWindow(QtWidgets.QMainWindow):
             tA = time.perf_counter()
 
             RGBlin = customProfile.trcDecode(RGB)
+            RGBlin = np.clip(RGBlin, 0.0, 1024.0)
+
+            tB = time.perf_counter()
+            self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
             
             # debug
             # if useAllTRCTags:
@@ -498,8 +531,8 @@ class MainWindow(QtWidgets.QMainWindow):
             #     print('Singlethread')
             #     RGBlin = customProfile.trcDecodeToLinearSingle(RGB)
 
-            tB = time.perf_counter()
-            self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
+            # tB = time.perf_counter()
+            # self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
 
             if np.any(RGBlin > 1.0):
                 self.printLog('Detected pixel value with >1.0, possibly an HDR image')
@@ -514,7 +547,69 @@ class MainWindow(QtWidgets.QMainWindow):
             tB = time.perf_counter()
             self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
 
-        # print(np.amax(RGBlin))
+        # print(np.amin(RGBlin))
+        if useAllTRCTags and colorspace_index == 0:
+            srgb = colour.models.RGB_COLOURSPACE_sRGB
+            wtpnt = None
+            if autoProfileValid:
+                XYZlin = colour.RGB_to_XYZ(RGBlin, customProfile.prfWhite, customProfile.prfWhite, cProfile.matrix_RGB_to_XYZ)
+                xyYlin = colour.XYZ_to_xy(XYZlin)
+                wtpnt = customProfile.prfWhite
+                xyY2lin = xyYlin.reshape(-1, xyYlin.shape[-1])
+                xyYprim = customProfile.primariesCA
+                xyYprim = np.append(xyYprim, [xyYprim[0]], axis=0)
+            else:
+                wtpnt = srgb.whitepoint
+                XYZlin = colour.RGB_to_XYZ(RGBlin, srgb.whitepoint, srgb.whitepoint, srgb.matrix_RGB_to_XYZ)
+                xyYlin = colour.XYZ_to_xy(XYZlin)
+                xyY2lin = xyYlin.reshape(-1, xyYlin.shape[-1])
+
+            sRGBprim = srgb.primaries
+            sRGBprim = np.append(sRGBprim, [sRGBprim[0]], axis=0)
+
+            bord = np.array([
+                [0,0],
+                [0,0.85],
+                [0.85,0.85],
+                [0.85,0],
+                [0,0]
+            ])
+
+            color = (0.0, 0.0, 1.0)
+            fig = vp.Fig(show=False)
+            fig.size = (1200, 1200)
+            # fig.bgcolor = (0.5, 0.5, 0.5)
+            line = fig[0, 0].plot(xyY2lin, symbol='o', width=0,
+                                    face_color=color + (scAlpha/10,),
+                                    edge_color=None,
+                                    marker_size=4,)
+            line.set_gl_state(depth_test=False)
+
+            if autoProfileValid:
+                fig[0, 0].plot(xyYprim, symbol='o', width=1,
+                                        face_color='k',
+                                        edge_color='k',
+                                        marker_size=4,)
+
+            fig[0, 0].plot(sRGBprim, symbol='o', width=1,
+                                    color='m',
+                                    face_color='m',
+                                    edge_color='m',
+                                    marker_size=4,)
+            fig[0, 0].plot([wtpnt], symbol='o', width=1,
+                                    color='w',
+                                    face_color='w',
+                                    edge_color='k',
+                                    marker_size=8,)
+            fig[0, 0].plot(bord, symbol='o', width=1,
+                                    face_color='k',
+                                    edge_color='k',
+                                    marker_size=4,)
+            fig.show(run=True)
+
+            self.apply_btn.setEnabled(True)
+            self.printLog('\n==---------------------------------==')
+            return
 
         ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
 
