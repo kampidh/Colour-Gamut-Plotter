@@ -88,6 +88,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.diagramtype_combo = self.findChild(QtWidgets.QComboBox, 'DiagramTypeCombo')
         self.usealltags_checkbox = self.findChild(QtWidgets.QCheckBox, 'useAllTagsCheckbox')
         self.hiressize_spin = self.findChild(QtWidgets.QSpinBox, 'HiresSizeSpinBox')
+        self.extragamut_checkbox = self.findChild(QtWidgets.QCheckBox, 'extraGamutCheckbox')
 
         # Debug checkbox
         # self.usealltags_checkbox.setVisible(False)
@@ -241,6 +242,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # debug
         useAllTRCTags = self.usealltags_checkbox.isChecked()
+        extraGamut = self.extragamut_checkbox.isChecked()
 
         colorspace = ''
         diagramtype = ''
@@ -611,7 +613,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.printLog('\n==---------------------------------==')
             return
 
-        ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
+        if (extraGamut):
+            ovrSpace = [cProfile, 'sRGB', 'Display P3', 'ITU-R BT.2020']
+        else:
+            ovrSpace = [cProfile, 'sRGB']
 
         if saveOnly_checked:
             plotDens_name = ''
