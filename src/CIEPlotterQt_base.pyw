@@ -51,7 +51,7 @@ import vispy.plot as vp
 
 try:
     from ctypes import windll  # Windows only
-    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_2'
+    myappid = 'Kampidh.Colour Gamut Plotter.CIE Plotter.v1_3b'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -59,14 +59,14 @@ except ImportError:
 basedir = os.path.dirname(__file__)
 mainuifile = os.path.join(basedir,'MainUIwindow.ui')
 
-winVer = '1.2'
+winVer = '1.3b'
 winTitle = 'Colour Gamut Plotter v' + winVer
 
 aboutText = '''
 2022 - Written by Kampidh<br>
-Licensed under GPL<br>
+Licensed under GPL-3.0<br>
 Build with Python, PyQt, OpenCV, and <a href="https://www.colour-science.org/">Colour Science</a><br>
-Also Numpy, Pillow, and Tifffile<br>
+Also Numpy, Pyvips, and Vispy.<br>
 <br>
 <a href="https://github.com/kampidh/Colour-Gamut-Plotter">Github Project Page</a>
 '''
@@ -101,33 +101,24 @@ class MainWindow(QtWidgets.QMainWindow):
         plt.close()
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasImage:
-            event.accept()
-        else:
-            event.ignore()
+        event.accept()
+        # if event.mimeData().hasImage:
+        #     event.accept()
+        # else:
+        #     event.ignore()
 
     def dragMoveEvent(self, event):
-        if event.mimeData().hasImage:
-            event.accept()
-        else:
-            event.ignore()
+        event.accept()
+        # if event.mimeData().hasImage:
+        #     event.accept()
+        # else:
+        #     event.ignore()
 
     def dropEvent(self, event):
-        if event.mimeData().hasImage:
-            event.setDropAction(Qt.CopyAction)
-            file_path = event.mimeData().urls()[0].toLocalFile()
-            # Deprecated, causing slowdown when dropping a big image file.
-            # try:
-            #     prep = cv2.imread(file_path,-1)
-            # except:
-            #     self.file_input.clear()
-            #     QMessageBox.warning(self, 'Error', 'Unsupported format')
-            #     event.ignore()
-            #     return
-            self.file_input.setText(file_path)
-            event.accept()
-        else:
-            event.ignore()
+        event.setDropAction(Qt.CopyAction)
+        file_path = event.mimeData().urls()[0].toLocalFile()
+        self.file_input.setText(file_path)
+        event.accept()
 
     def ColorspaceCombo_changed(self):
         if self.colorspace_combo.currentIndex() == 0:
@@ -687,7 +678,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_colours=[0.75, 0.75, 0.75],
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
-                        title="CIE 1931 Chromaticity Diagram",
+                        title=f'CIE 1931 Diagram | {os.path.basename(input_file)}',
                         transparent_background=False,
                         bounding_box=chRange1931,
                         filename=fiName,
@@ -708,7 +699,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_colours=[0.75, 0.75, 0.75],
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
-                        title="CIE 1931 Chromaticity Diagram",
+                        title=f'CIE 1931 Diagram | {os.path.basename(input_file)}',
                         transparent_background=False,
                         bounding_box=chRange1931,
                     )
@@ -760,7 +751,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_colours=[0.75, 0.75, 0.75],
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
-                        title="CIE 1976 UCS Chromaticity Diagram",
+                        title=f'CIE 1976 UCS Diagram | {os.path.basename(input_file)}',
                         transparent_background=False,
                         bounding_box=chRange1976,
                         filename=fiName,
@@ -781,12 +772,12 @@ class MainWindow(QtWidgets.QMainWindow):
                         diagram_colours=[0.75, 0.75, 0.75],
                         diagram_opacity=0.15,
                         scatter_kwargs={'s':2, 'alpha':scAlpha},
-                        title="CIE 1976 UCS Chromaticity Diagram",
+                        title=f'CIE 1976 UCS Diagram | {os.path.basename(input_file)}',
                         transparent_background=False,
                         bounding_box=chRange1976,
                     )
                     self.printLog('Plotting Completed')
-                    self.printLog('\n==---------------------------------==\n')
+                    self.printLog('==---------------------------------==\n')
                 except:
                     self.printLog('Plotting Failed')
                     if 'identity'.lower() in infostr.lower():

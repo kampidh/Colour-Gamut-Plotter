@@ -142,13 +142,14 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string>Plot using vispy for rapid preview</string>
+     <string>Plot using vispy for rapid preview.
+Only available in CIE 1931 diagram (xy)</string>
     </property>
     <property name="text">
      <string>Vispy preview (beta)</string>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>22</x>
