@@ -22,7 +22,7 @@ Written in **Python 3.10.7**
 - Automatic detection if the embedded profile have different per-channel TRC
 - Selectable plotting density. If image is bigger than the plotting density, image is resized with Nearest Neighbour so no interpolation is happening.
 - Selectable diagram mode, between CIE 1930 or CIE 1976 UCS Chromaticity diagram.
-- Rapid preview with vispy. Check 'Experimental features' to try it.
+- Rapid preview with vispy. Check 'Vispy preview (beta)' to try it.
 - Extended format support from libvips, including JPEG XL support.
 
 ## Limitation
