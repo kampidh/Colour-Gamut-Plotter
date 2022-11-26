@@ -343,7 +343,10 @@ class MainWindow(QtWidgets.QMainWindow):
         #     prepd = prep.dtype
 
         try:
+            tA = time.perf_counter()
             image = pyvips.Image.new_from_file(input_file, access='sequential')
+            tB = time.perf_counter()
+            self.printLog(f'Image loaded in {round((tB-tA) * 1000, 2)} milisecond(s)')
             prep_a = image.numpy()
             stinfo = image.get('icc-profile-data')
             if isTIFF and (prep_a.dtype == 'float32' or prep_a.dtype == 'float16'):
@@ -357,7 +360,7 @@ class MainWindow(QtWidgets.QMainWindow):
         except:
             self.printLog('Failed to read color metadata, try to read raw data instead')
             try:
-                image = pyvips.Image.new_from_file(input_file)
+                image = pyvips.Image.new_from_file(input_file, access='sequential')
                 prep_a = image.numpy()
                 if isTIFF:
                     prep = cv2.cvtColor(prep_a/255, cv2.COLOR_RGB2BGR)
@@ -511,7 +514,7 @@ class MainWindow(QtWidgets.QMainWindow):
             tA = time.perf_counter()
 
             RGBlin = customProfile.trcDecode(RGB)
-            RGBlin = np.clip(RGBlin, 0.0, 1024.0)
+            # RGBlin = np.clip(RGBlin, 0.0, 1024.0)
 
             tB = time.perf_counter()
             self.printLog(f'Image TRC decoded in {round(tB-tA, 4)} second(s)')
