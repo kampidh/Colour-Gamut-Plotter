@@ -315,11 +315,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self.printLog('Max Pixel count: %i pixels' % maxPixel)
         self.printLog('Color Space: %s' % colorspace + '\n')
 
+        stdPlotSize = 12
+
         if saveOnly_checked:
             # pltSize = [25, 25]
             pltSize = [hires_size, hires_size]
         else:
-            pltSize = [12, 12]
+            pltSize = [stdPlotSize, stdPlotSize]
+
+        fontSize = 10 * (hires_size / stdPlotSize)
 
         stinfo = ''
 
@@ -650,19 +654,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 COL_STYLE.update(
                     {
                         "grid.alpha": 0.25,
-                        "legend.framealpha": 0.25,
+                        "legend.framealpha": 0.75,
                         "legend.loc": 'lower center',
                         "figure.figsize": pltSize,
-                        "legend.fontsize": 'xx-large'
+                        "legend.facecolor": '#202020',
+                        "font.size": fontSize * 0.85,
                     }
                 )
             else:
                 COL_STYLE.update(
                     {
                         "grid.alpha": 0.25,
-                        "legend.framealpha": 0.25,
+                        "legend.framealpha": 0.75,
                         "legend.loc": 'lower center',
                         "figure.figsize": pltSize,
+                        "legend.facecolor": '#202020',
                     }
                 )
 
@@ -723,19 +729,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 COL_STYLE.update(
                     {
                         "grid.alpha": 0.25,
-                        "legend.framealpha": 0.25,
+                        "legend.framealpha": 0.75,
                         "legend.loc": 'lower left',
                         "figure.figsize": pltSize,
-                        "legend.fontsize": 'xx-large'
+                        "legend.facecolor": '#202020',
+                        "font.size": fontSize * 0.85,
                     }
                 )
             else:
                 COL_STYLE.update(
                     {
                         "grid.alpha": 0.25,
-                        "legend.framealpha": 0.25,
+                        "legend.framealpha": 0.75,
                         "legend.loc": 'lower left',
                         "figure.figsize": pltSize,
+                        "legend.facecolor": '#202020',
                     }
                 )
 
